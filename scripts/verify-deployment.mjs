@@ -12,9 +12,12 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const checks = await Promise.all((await files(root)).map(async file => {
   const path = relative(root, file).replaceAll('\\', '/');
   const response = await fetch(new URL(path === 'index.html' ? '/' : path, base), {signal: AbortSignal.timeout(30000)});
-  const localHash = hash(await readFile(file));
-  const remoteHash = hash(Buffer.from(await response.arrayBuffer()));
-  return {path, status: response.status, matches: response.ok && localHash === remoteHash, localHash, remoteHash};
+  const local = await readFile(file), remote = Buffer.from(await response.arrayBuffer());
+  const localHash = hash(local), remoteHash = hash(remote);
+  // Git may check out HTML as CRLF on Windows and LF on the Linux builder.
+  // Only that difference is accepted; JS, CSS and font bytes must be identical.
+  const normalizedHtmlMatch = path.endsWith('.html') && local.toString('utf8').replaceAll('\r\n', '\n') === remote.toString('utf8').replaceAll('\r\n', '\n');
+  return {path, status: response.status, matches: response.ok && (localHash === remoteHash || normalizedHtmlMatch), byteIdentical: localHash === remoteHash, normalizedHtmlMatch, localHash, remoteHash};
 }));
 console.log(JSON.stringify({url: base.href, checkedAt: new Date().toISOString(), files: checks.length, passed: checks.every(c => c.matches), checks}, null, 2));
 if (checks.some(c => !c.matches)) process.exitCode = 1;
