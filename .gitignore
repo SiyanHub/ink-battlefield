@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env*
+.vercel/
+artifacts/
+*.log
+.publish/
+.claude/
+.codex/
+*.zip
+*.pem
+*.key

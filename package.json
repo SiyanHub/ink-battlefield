@@ -1,0 +1,28 @@
+{
+  "name": "ink-battlefield",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 8902 --strictPort",
+    "test": "tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "build:cloud": "tsc --noEmit && vite build --mode cloud",
+    "start": "tsx src/server/entry.ts",
+    "start:lan": "tsx src/server/entry.ts --lan"
+  },
+  "dependencies": {
+    "@fontsource/patrick-hand": "5.3.0",
+    "three": "0.180.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/three": "^0.180.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3"
+  }
+}

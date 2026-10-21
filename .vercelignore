@@ -1,0 +1,12 @@
+.git/
+.env*
+.claude/
+.codex/
+.publish/
+node_modules/
+dist/
+artifacts/
+*.log
+*.zip
+*.pem
+*.key

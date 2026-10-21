@@ -1,0 +1,71 @@
+import type { ClassId, UpgradeDefinition } from "../shared/contracts";
+type Row = [string, string, string, string, number, ClassId?];
+const rows: Row[] = [
+  ["magazine", "加大笔筒", "弹匣容量增加25%", "magazine", 0.25],
+  ["reload", "熟练换芯", "换弹时间缩短15%", "reload", 0.15],
+  ["damage", "锋利笔尖", "伤害提高12%", "damage", 0.12],
+  ["steady", "稳住笔锋", "散布减少25%", "spread", 0.25],
+  ["weakpoint", "精细刻画", "弱点伤害提高25%", "weakpoint", 0.25],
+  ["opening", "起笔有力", "满弹匣首发伤害提高40%", "opening", 0.4],
+  ["recycle", "回收墨水", "击杀恢复4发弹药", "recycle", 4],
+  ["pierce", "穿透纸面", "射线可穿透额外一个敌人", "pierce", 1],
+  ["ricochet", "折线笔触", "命中墙面后弹跳一次", "ricochet", 1],
+  ["health", "加厚纸张", "生命上限增加25", "health", 25],
+  ["supply", "补给增效", "击杀额外回复3点生命", "supply", 3],
+  ["vampire", "近战回墨", "近战击杀回复12生命", "vampire", 12],
+  ["air", "空中运笔", "空中控制提高30%", "air", 0.3],
+  ["speed", "疾走速写", "移动速度提高10%", "speed", 0.1],
+  ["doublejump", "折纸跃迁", "获得一次空中跳跃", "doublejump", 1],
+  ["grapple", "轻巧钩线", "钩索冷却缩短25%", "grapple", 0.25],
+  ["cooldown", "灵感迸发", "技能冷却缩短15%", "cooldown", 0.15],
+  ["paint", "宽幅笔触", "染色半径提高20%", "paint", 0.2],
+  ["dashchain", "连续闪步", "闪步冷却减半", "dashchain", 0.5, "assault"],
+  ["dashfire", "流动火力", "闪步后短时射速提高", "dashfire", 0.4, "assault"],
+  ["parry", "回锋", "格挡有效角度增加", "parry", 0.4, "assault"],
+  ["shieldwide", "撑开纸页", "纸盾阻挡范围增加", "shieldwide", 0.5, "heavy"],
+  ["shieldheal", "修补折痕", "开启纸盾回复20生命", "shieldheal", 20, "heavy"],
+  ["cluster", "绽放爆破", "榴弹爆炸产生三枚子弹", "cluster", 3, "heavy"],
+  [
+    "markdamage",
+    "观察入微",
+    "对标记目标伤害提高25%",
+    "markdamage",
+    0.25,
+    "scout",
+  ],
+  ["quickcharge", "拉满弓弦", "蓄力时间缩短30%", "quickcharge", 0.3, "scout"],
+  ["scanlong", "长久凝视", "侦察持续时间延长5秒", "scanlong", 5, "scout"],
+  ["spraywide", "泼墨成画", "喷墨额外增加两条墨流", "spraywide", 2, "artist"],
+  ["penpierce", "一笔贯穿", "钢笔束额外穿透两个目标", "penpierce", 2, "artist"],
+  [
+    "rollrush",
+    "滚筒冲锋",
+    "使用滚筒时移动速度增加25%",
+    "rollrush",
+    0.25,
+    "artist",
+  ],
+];
+export const upgrades: Record<string, UpgradeDefinition> = Object.fromEntries(
+  rows.map(([id, name, description, effect, amount, classId]) => [
+    id,
+    {
+      id,
+      name,
+      description,
+      effect,
+      amount,
+      classId: classId ?? "all",
+      maxStacks: [
+        "pierce",
+        "ricochet",
+        "doublejump",
+        "dashchain",
+        "cluster",
+        "penpierce",
+      ].includes(id)
+        ? 1
+        : 3,
+    },
+  ]),
+);
