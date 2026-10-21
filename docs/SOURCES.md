@@ -32,4 +32,4 @@
 
 ## 2026-10-21 发布
 
-用户授权上传 GitHub 与 Vercel。新工程发布至私有仓库 `SiyanHub/ink-battlefield`，Vercel 项目为 `siyan1/ink-battlefield`；保留上述来源与许可证。原 Demo 目录、账号配置、测试截图和本地备份没有上传。正式网页只提供构建产物，局域网房间仍由本地启动脚本运行。
+用户授权上传 GitHub 与 Vercel。新工程发布至公开仓库 `SiyanHub/ink-battlefield`，Vercel 项目为 `siyan1/ink-battlefield`；保留上述来源与许可证。原 Demo 目录、账号配置、测试截图和本地备份没有上传。正式网页只提供构建产物，局域网房间仍由本地启动脚本运行。
