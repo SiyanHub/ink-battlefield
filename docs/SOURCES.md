@@ -28,4 +28,8 @@
 
 `手绘风水墨/Opus5.5/src/sketch.js` 的顶点/片元着色器适配到 `src/client/render/sketch-shaders.ts`，保留来源标注；对当前 Three 颜色管理加入线性到显示色转换，调整排线阈值、线条抖动和色度保护。`SketchPipeline`、`PaperTextures` 与 `WeaponPaper` 为本工程新实现。角色参考原 Opus 的关节纸人方向重建，尺寸遵循共享命中几何。当前运行管线不再使用旧 `DoodleMaterial`；该文件及色板仅留作来源参考，不导入生产入口。
 
-本次仍仅本地交付，未发布原项目素材或改变原 Demo 许可。
+该轮重构最初仅本地交付，未改变原 Demo 许可。
+
+## 2026-10-21 发布
+
+用户授权上传 GitHub 与 Vercel。新工程发布至私有仓库 `SiyanHub/ink-battlefield`，Vercel 项目为 `siyan1/ink-battlefield`；保留上述来源与许可证。原 Demo 目录、账号配置、测试截图和本地备份没有上传。正式网页只提供构建产物，局域网房间仍由本地启动脚本运行。

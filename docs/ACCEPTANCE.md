@@ -1,5 +1,11 @@
 # 本地交付验收记录
 
+## 发布构建：GitHub 与 Vercel
+
+2026-10-21：新增 `build:cloud` 与 Vercel 构建配置。云端版本的局域网入口显示本地启动说明，避免向静态网站发起无效房间连接；本地构建保留完整联机流程。**91/91 测试通过，云端构建通过。** 发布检查中将 Vite 更新至 7.3.7、source-map-js 更新至 1.2.2，随后 `npm audit` 为 0 项漏洞。更新仅影响开发/构建依赖。
+
+在线入口：<https://ink-battlefield.vercel.app/>；私有仓库：<https://github.com/SiyanHub/ink-battlefield>。Vercel 已连接仓库的 `main` 分支。验证脚本：先 `npm run build:cloud`，再 `node scripts/verify-deployment.mjs https://ink-battlefield.vercel.app/`，逐个请求 HTML、JS、CSS、字体并比较 SHA-256。每次发布的本地测试、部署状态与线上核验记录保存在不上传的 `artifacts/publish-20261021/`。
+
 ## 最新修复：右键瞄准
 
 2026-10-21：补齐普通枪械机瞄、狙击镜遮罩与分划、视野过渡及瞄准灵敏度。右键输入原已存在，但普通枪没有举枪，狙击枪只有 FOV 缩放。新增 UI 呈现回归并扩展真实输入事件测试：右键按下/松开、左右键同时使用、换枪退镜和失焦清理均通过，**90/90 测试、类型检查与构建通过**。未改动服务端伤害或散布规则。

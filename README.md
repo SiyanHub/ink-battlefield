@@ -2,6 +2,8 @@
 
 以 Opus 5.5 为主的细铅笔线稿、暖色纸张、少量蓝色标记与持续积累的彩墨。电脑浏览器 FPS，支持单机三章闯关和 2–8 人局域网竞技。原来的两个 Demo 保留在上级目录，新工程独立运行。
 
+[在线体验](https://ink-battlefield.vercel.app/) · [GitHub 源码（私有）](https://github.com/SiyanHub/ink-battlefield)
+
 最新模型与验收：[武器、人物和怪物优化](docs/MODELS-20261021.md)。前一轮整体设计：[设计记录](docs/DESIGN-20261021.md)。
 
 ## 启动
