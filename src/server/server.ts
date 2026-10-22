@@ -11,7 +11,7 @@ export async function createGameServer(options: GameServerOptions = {}) {
   const server = createServer(staticHttp(options.distDir ?? "dist"));
   const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 16384 });
   const rooms = new RoomRegistry(options, send);
-  wss.on("connection", (ws) => acceptConnection(ws, rooms));
+  wss.on("connection", (ws) => acceptConnection(ws, rooms, options));
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port ?? 8903, options.host ?? "127.0.0.1", resolve);

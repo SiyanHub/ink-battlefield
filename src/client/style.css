@@ -227,9 +227,15 @@ progress::-moz-progress-bar { background: #6c756a; }
 
 /* Quiet graphite combat annotations; no repeating pulse or full-screen animation. */
 .crosshair.confirmed { width: 24px; height: 24px; border: 1px solid #57758a; border-radius: 50%; opacity: 1; }
+.crosshair.lethal { width: 28px; height: 28px; border: 2px solid #b85835; border-radius: 50%; opacity: 1; }
+.crosshair.lethal:before { top: 11px; left: 4px; background: #b85835; }
+.crosshair.lethal:after { top: 4px; left: 11px; background: #b85835; }
 .crosshair.confirmed:before { top: 11px; left: 4px; }
 .crosshair.confirmed:after { top: 4px; left: 11px; }
 .hit-confirmation { position: absolute; top: calc(50% + 19px); left: 50%; transform: translateX(-50%); font-size: 10px; color: #334b5c; padding: 2px 5px; background: #f8f3e7dc; }
+.hit-confirmation:has(small) { left: calc(50% + 35px); top: calc(50% - 9px); transform: none; font: 700 23px "Patrick Hand", sans-serif; background: #f8f3e7e8; border-bottom: 2px solid #477b99; padding: 1px 7px; }
+.hit-confirmation small { display: block; font: 10px sans-serif; }
+.hit-confirmation.lethal { color: #a44f30; border-color: #b85835; }
 .kill-confirmations { position: absolute; left: 50%; top: calc(50% + 44px); transform: translateX(-50%); text-align: center; max-width: 250px; }
 .kill-confirmations p { width: fit-content; margin: 4px auto; padding: 3px 9px; font-size: 11px; color: #405867; background: #f8f3e7ed; border-bottom: 1px solid #98a1a0; }
 .damage-edge { position: absolute; inset: 0; box-shadow: inset 0 0 55px 12px #78554c52; border: 5px solid #8767582c; }
@@ -269,3 +275,93 @@ progress::-moz-progress-bar { background: #6c756a; }
   .boss-health small { float: none; display: block; }
 }
 @media (prefers-reduced-motion: reduce) { .damage-edge { display: none; } }
+
+/* Readable pencil annotations retain the paper palette at desktop viewing distance. */
+.mission { max-width: 335px; }
+.mission small, .hud-caption, .ammo-hint, .controls { font-size: 11px; }
+.mission p, .abilities, .abilities b, .weapon-progress, .health-warning { font-size: 12px; }
+.weapon-strip { font-size: 11px; color: #6f685c; }
+.abilities { bottom: 55px; }
+.mission, .health, .ammo, .boss-health, .quick-start, .practice-tools { zoom: var(--hud-scale, 1); }
+.abilities, .weapon-strip, .controls { zoom: var(--hud-scale, 1); }
+.starter-note { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: -3px 0 20px; padding: 13px 16px; border-left: 2px solid var(--blue); background: #edf0ea; }
+.starter-note strong { display: block; font-size: 13px; margin-bottom: 5px; }
+.starter-note span { display: block; color: #69675e; font-size: 12px; line-height: 1.6; }
+.starter-note button { flex-shrink: 0; font-size: 12px; }
+.quick-start { position: absolute; right: 24px; top: 22px; width: 300px; padding: 14px 16px; border-top: 2px solid var(--blue); background: #f7f2e7ed; }
+.quick-start small { font-size: 11px; color: #66675d; }
+.quick-start h3 { font-size: 16px; margin: 9px 0; }
+.quick-start p { font-size: 12px; margin: 0 0 12px; line-height: 1.7; }
+.quick-start > div { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+.quick-start > div span { font-size: 11px; color: #817b70; }
+.quick-start > div .done { color: #42645c; }
+.practice-tools { position: absolute; right: 24px; top: 210px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 300px; }
+.practice-tools button { pointer-events: auto; font-size: 11px; padding: 7px 10px; background: #f7f2e7e8; }
+.practice-tools:not(.guided) { top: 22px; }
+.save-warning { pointer-events: auto; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #f7eee2; color: #7c4c36; border: 1px solid #ad8974; padding: 10px 16px; font-size: 12px; z-index: 8; max-width: 90vw; }
+.save-warning button { margin-left: 12px; padding: 6px 12px; font-size: 12px; }
+.upgrade-fit { display: block; color: #48685f; font-size: 12px; line-height: 1.7; border-top: 1px solid #d2cbbd; padding-top: 10px; }
+.inspect { flex-wrap: wrap; max-width: calc(100vw - 40px); }
+@media (max-width: 900px) {
+  .quick-start { width: 235px; right: 12px; }
+  .practice-tools { right: 12px; top: 235px; max-width: 235px; }
+  .starter-note { align-items: flex-start; flex-wrap: wrap; }
+  .mission { max-width: 245px; }
+}
+
+#save-status .save-warning { z-index: 10; }
+.practice-tools:empty { display: none; }
+
+/* Turf is measured against the whole paintable floor, including untouched paper. */
+.home nav .turf-entry { border-left: 4px solid #1977bd; background: linear-gradient(105deg, #e5eef2 0%, #f7f3e9 68%, #f2e2d8); }
+.turf-brief { display: flex; align-items: center; justify-content: center; gap: 30px; padding: 15px 20px; background: #eee9dc; margin: 0 0 15px; }
+.turf-team { flex: 1; display: flex; align-items: baseline; gap: 14px; border-bottom: 4px solid; padding: 5px 0 12px; }
+.turf-team.red { flex-direction: row-reverse; }
+.turf-team.blue { color: var(--turf-blue); }
+.turf-team.red { color: var(--turf-red); }
+.turf-team b { font-size: 19px; }
+.turf-team span { font-size: 12px; color: #736d61; }
+.turf-brief > strong { font: 21px "Patrick Hand", sans-serif; color: #978c7a; }
+.turf-options { display: flex; align-items: center; gap: 30px; margin: 0 0 20px; }
+.turf-options label { min-width: 230px; }
+.turf-options p { font-size: 12px; color: #766f61; margin: 0; }
+.turf-score { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: min(590px, calc(100vw - 32px)); padding: 12px 18px 10px; background: #f8f4eaf0; border: 1px solid #bfb4a1; box-shadow: 2px 3px 0 #3a393518; font-size: calc(11px * var(--hud-scale, 1)); }
+.turf-score-top, .turf-numbers, .turf-score-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.turf-score-top { color: #756e61; }
+.turf-score-top > span { flex: 1; }
+.turf-score-top > span:last-child { text-align: right; }
+.turf-clock { color: #3a3935; font: bold calc(27px * var(--hud-scale, 1)) "Patrick Hand", sans-serif; line-height: 1; min-width: 76px; text-align: center; }
+.turf-numbers { margin: 12px 0 9px; }
+.turf-numbers > span { display: flex; gap: 8px; align-items: center; }
+.turf-numbers b { font: bold calc(23px * var(--hud-scale, 1)) "Patrick Hand", sans-serif; }
+.turf-numbers small { font-size: calc(9px * var(--hud-scale, 1)); color: #6d675c; border-bottom: 1px solid #b7ae9e; }
+.turf-numbers i { width: 9px; height: 9px; background: currentColor; border-radius: 40% 55% 40% 50%; }
+.turf-numbers .blue { color: var(--turf-blue); }
+.turf-numbers .red { color: var(--turf-red); }
+.turf-track { display: flex; height: 13px; overflow: hidden; background: #d9d2c2; border: 1px solid #b9af9c; border-radius: 7px 5px 7px 5px; }
+.turf-segment { min-width: 0; box-shadow: inset 0 2px #ffffff2a, inset 0 -2px #00000018; }
+.turf-blank { background: repeating-linear-gradient(125deg,#e7dfce,#e7dfce 3px,#d8cebc 4px,#e7dfce 5px); }
+.turf-score-foot { margin-top: 7px; font-size: calc(10px * var(--hud-scale, 1)); color: #777064; }
+.turf-final-seconds .turf-clock { color: #b14b30; }
+.turf-result { position: relative; left: auto; top: auto; transform: none; width: 100%; margin: 20px 0; }
+@media (max-height: 780px) {
+  .home h1 { font-size: 62px; margin-top: 16px; }
+  .home nav button { padding-block: 10px; }
+  .home-note { margin-top: 15px; }
+  .intro { margin-block: 18px; }
+}
+@media (max-width: 650px) {
+  .turf-team { flex-direction: column; gap: 4px; }
+  .turf-team.red { flex-direction: column; align-items: flex-end; }
+  .turf-brief { gap: 12px; }
+  .turf-options { flex-wrap: wrap; gap: 10px; }
+  .turf-score { padding: 10px; }
+  .turf-numbers small { display: none; }
+  .turf-score-foot { font-size: 10px; }
+}
+.weapon-rack { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; margin: 2px 0 10px; }
+.weapon-rack button { text-align: left; padding: 10px 11px; border: 1px solid #c9c3b5; background: #f9f5ec; min-width: 0; }
+.weapon-rack button.selected { border-color: #477b99; box-shadow: inset 0 -3px #477b99; background: #e9eeeb; }
+.weapon-rack strong { display: block; font-size: 12px; margin-bottom: 5px; }
+.weapon-rack span { display: block; font-size: 10px; color: #6b726e; }
+@media(max-width:650px) { .weapon-rack { grid-template-columns: repeat(2,minmax(0,1fr)); } }

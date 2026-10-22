@@ -17,10 +17,10 @@ test("all class weapons are available immediately for new and existing profiles 
   const storage = memory();
   const store = new ProfileStore(storage);
   const expected = {
-    assault: ["rifle", "smg", "carbine", "katana"],
-    heavy: ["shotgun", "lmg", "grenade", "hammer"],
-    scout: ["revolver", "sniper", "bow", "compass"],
-    artist: ["pencil", "brush", "pen", "roller"],
+    assault: ["rifle", "smg", "carbine", "dual", "scatter", "katana"],
+    heavy: ["shotgun", "lmg", "grenade", "rocket", "minigun", "hammer"],
+    scout: ["revolver", "sniper", "bow", "crossbow", "nailgun", "compass"],
+    artist: ["pencil", "brush", "pen", "bucket", "bubble", "roller"],
   } as const;
   for (const id of ["assault", "heavy", "scout", "artist"] as const)
     assert.deepEqual(store.unlockedWeapons(id), [...expected[id]]);
@@ -36,12 +36,14 @@ test("all class weapons are available immediately for new and existing profiles 
 test("encounter statistics persist while death clears only the current run", () => {
   const storage = memory(),
     p = new ProfileStore(storage);
-  assert.deepEqual(p.unlockedWeapons("heavy"), ["shotgun", "lmg", "grenade", "hammer"]);
+  assert.deepEqual(p.unlockedWeapons("heavy"), ["shotgun", "lmg", "grenade", "rocket", "minigun", "hammer"]);
   for (let i = 0; i < 3; i++) p.recordEncounter("heavy");
   assert.deepEqual(new ProfileStore(storage).unlockedWeapons("heavy"), [
     "shotgun",
     "lmg",
     "grenade",
+    "rocket",
+    "minigun",
     "hammer",
   ]);
   const profile = p.load();

@@ -108,7 +108,7 @@ test("room start explains unmet player, readiness and team requirements before e
   game.room.settings.teamMode = true;
   html = renderMenu(game);
   assert.match(html, /data-action="start-room"[^>]*disabled/);
-  assert.match(html, /蓝队与红队各至少 1 人/);
+  assert.match(html, /蓝墨队与朱墨队各至少 1 人/);
   game.room.members[1].teamId = "red";
   assert.doesNotMatch(renderMenu(game), /data-action="start-room"[^>]*disabled/);
   game.room.settings.modeId = "control";

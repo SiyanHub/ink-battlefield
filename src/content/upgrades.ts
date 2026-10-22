@@ -1,4 +1,24 @@
-import type { ClassId, UpgradeDefinition } from "../shared/contracts";
+import type { ClassId, UpgradeDefinition, WeaponDefinition } from "../shared/contracts";
+
+/** Weapon-specific growth keeps the same applicability in the reward pool and UI. */
+export const upgradeWeaponRequirements: Record<string, { behaviors?: readonly string[]; ids?: readonly string[] }> = {
+  pierce: { behaviors: ["hitscan"] },
+  ricochet: { behaviors: ["hitscan"] },
+  weakpoint: { behaviors: ["hitscan", "burst", "pellets", "spray", "beam"] },
+  cluster: { ids: ["grenade"] },
+  quickcharge: { behaviors: ["charge", "beam"] },
+  spraywide: { behaviors: ["spray"] },
+  penpierce: { behaviors: ["beam"] },
+  rollrush: { behaviors: ["roller"] },
+  parry: { ids: ["katana"] },
+};
+export function upgradeAppliesToWeapon(upgradeId: string, weapon: WeaponDefinition | undefined): boolean {
+  if (!weapon) return false;
+  const requirement = upgradeWeaponRequirements[upgradeId];
+  if (!requirement) return true;
+  return (!requirement.behaviors || requirement.behaviors.includes(weapon.behavior)) &&
+    (!requirement.ids || requirement.ids.includes(weapon.id));
+}
 type Row = [string, string, string, string, number, ClassId?];
 const rows: Row[] = [
   ["magazine", "加大笔筒", "弹匣容量增加25%", "magazine", 0.25],
@@ -8,8 +28,8 @@ const rows: Row[] = [
   ["weakpoint", "精细刻画", "弱点伤害提高25%", "weakpoint", 0.25],
   ["opening", "起笔有力", "满弹匣首发伤害提高40%", "opening", 0.4],
   ["recycle", "回收墨水", "击杀恢复4发弹药", "recycle", 4],
-  ["pierce", "穿透纸面", "射线可穿透额外一个敌人", "pierce", 1],
-  ["ricochet", "折线笔触", "命中墙面后弹跳一次", "ricochet", 1],
+  ["pierce", "穿透纸面", "适用墨弹可穿透额外一个敌人", "pierce", 1],
+  ["ricochet", "折线笔触", "适用墨弹命中墙面后弹跳一次", "ricochet", 1],
   ["health", "加厚纸张", "生命上限增加25", "health", 25],
   ["supply", "补给增效", "击杀额外回复3点生命", "supply", 3],
   ["vampire", "近战回墨", "近战击杀回复12生命", "vampire", 12],

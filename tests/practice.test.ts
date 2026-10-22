@@ -37,6 +37,7 @@ test("practice accepts ground painting before three real target kills and keeps 
   simulation.addEnemy("grunt", { x: 0, y: 0, z: -1 });
   simulation.input("p", { ...neutralInput(), seq: 1, primary: true, pitch: 1.2 });
   simulation.step();
+  simulation.advance(.05);
   assert.equal(simulation.getSnapshot().objective.progress, 1, "a real floor shot covers over 1% of this small scoring floor");
   assert.doesNotMatch(simulation.getSnapshot().objective.description, /向地面/);
   for (let kill = 0; kill < 3; kill++) {
@@ -127,6 +128,8 @@ test("practice shots spend real ammo, kill a stationary target, paint the ground
     session.submitInput({ ...neutralInput(), seq: 1, primary: true });
     session.advance(1 / 60);
     assert.equal(session.getSnapshot().actors.find((a) => a.id === session.playerId)!.ammo.rifle.clip, 29);
+    assert.equal(session.getSnapshot().actors.find((a) => a.id === target.id)!.hp, target.hp);
+    session.advance(.15);
     assert.ok(session.getSnapshot().actors.find((a) => a.id === target.id)!.hp < target.hp);
     session.advance(1);
     assert.equal(session.getSnapshot().actors.find((a) => a.id === target.id)!.alive, false);

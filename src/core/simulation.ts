@@ -11,6 +11,7 @@ import type {
   PaintSnapshot,
 } from "../shared/contracts";
 import { maps } from "../content";
+import { neutralInput } from "../shared/contracts";
 import { Runtime } from "./runtime";
 import { spawnEnemy } from "./actors";
 import { PlayerSystem } from "./players";
@@ -31,6 +32,9 @@ export interface SimulationOptions {
   mapId?: string;
   seed?: number;
   teamMode?: boolean;
+  /** Local adapters opt in; an ordinary network simulation continues while menus are open. */
+  allowPause?: boolean;
+  beforeStep?: (simulation: Simulation) => void;
   content?: {
     weapons?: Record<string, WeaponDefinition>;
     enemies?: Record<string, EnemyDefinition>;
@@ -87,10 +91,19 @@ export class Simulation {
   input(id: string, input: InputFrame) {
     this.players.input(id, input);
   }
+  /** Transport loss cancels held actions without inventing an acknowledged input. */
+  releaseInput(id: string) {
+    const state = this.rt.actors.get(id);
+    if (!state) return;
+    state.input = { ...neutralInput(), seq: state.input.seq, yaw: state.input.yaw, pitch: state.input.pitch };
+    state.lastPrimary = false;
+    state.burstLeft = 0;
+    for (const ammo of Object.values(state.actor.ammo)) ammo.chargeStarted = null;
+  }
   command(id: string, c: SessionCommand) {
     const s = this.rt.actors.get(id);
     if (!s) return;
-    const canPause = this.rt.solo || this.modeId === "practice";
+    const canPause = this.rt.solo || this.modeId === "practice" || this.options.allowPause === true;
     if (canPause && c.type === "pause" && this.phase === "playing")
       this.phase = "paused";
     if (canPause && c.type === "resume" && this.phase === "paused")
@@ -109,6 +122,7 @@ export class Simulation {
       dt = 1 / 60;
     rt.tick++;
     rt.time = rt.tick / 60;
+    this.options.beforeStep?.(this);
     this.players.update(dt);
     this.campaign?.update();
     this.ai?.update(dt, this.campaign?.defense);
@@ -128,8 +142,10 @@ export class Simulation {
   advance(seconds: number) {
     for (let i = 0; i < Math.round(seconds * 60); i++) this.step();
   }
-  getSnapshot(): GameSnapshot {
-    return {
+  getSnapshot(includePaint?: true): GameSnapshot;
+  getSnapshot(includePaint: false): Omit<GameSnapshot, "paint">;
+  getSnapshot(includePaint = true): GameSnapshot | Omit<GameSnapshot, "paint"> {
+    const snapshot: Omit<GameSnapshot, "paint"> = {
       tick: this.rt.tick,
       time: this.rt.time,
       phase: this.phase,
@@ -139,7 +155,6 @@ export class Simulation {
       projectiles: structuredClone(
         [...this.rt.projectiles.values()].map((p) => p.snapshot),
       ),
-      paint: this.rt.paint.snapshot(),
       scores: { ...this.mode.scores },
       objective: { ...(this.campaign?.objective ?? this.mode.objective) },
       campaign: this.campaign
@@ -150,10 +165,13 @@ export class Simulation {
         ? this.campaign.objective.remaining
         : this.mode.remaining,
     };
+    return includePaint ? { ...snapshot, paint: this.rt.paint.snapshot() } : snapshot;
   }
-  takeFrame(): GameFrame {
+  takeFrame(includePaint?: true): GameFrame;
+  takeFrame(includePaint: false): Omit<GameFrame, "snapshot"> & { snapshot: Omit<GameSnapshot, "paint"> };
+  takeFrame(includePaint = true) {
     const frame = {
-      snapshot: this.getSnapshot(),
+      snapshot: includePaint ? this.getSnapshot() : this.getSnapshot(false),
       events: this.rt.events.splice(0),
     };
     return frame;

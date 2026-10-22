@@ -14,7 +14,7 @@ export class Input {
   constructor(
     readonly canvas: HTMLCanvasElement,
     readonly sensitivity: () => number,
-    readonly menu: () => void,
+    readonly menu: (preservePractice?: boolean) => void,
     readonly scoreboard: (show: boolean) => void,
     readonly notice: (s: string) => void,
   ) {
@@ -25,6 +25,7 @@ export class Input {
         this.menu();
         return;
       }
+      if (e.code === "KeyP" && !e.repeat) { this.menu(true); return; }
       if (e.code === "Tab") this.scoreboard(true);
       if (!e.repeat) this.pulses.add(e.code);
       this.keys.add(e.code);

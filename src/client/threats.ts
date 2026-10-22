@@ -1,6 +1,14 @@
 import * as T from "three";
-import type { GameEvent, GameSnapshot } from "../shared/contracts";
+import type { GameEvent, GameSnapshot, MapDefinition, Vec3 } from "../shared/contracts";
+import { maps } from "../content";
+import { World } from "../core/world";
 import { dispose, label } from "./primitives";
+
+/** Start immediately above the occupied floor, so an overhead bridge cannot steal its warning. */
+export function warningGround(map:MapDefinition,point:Vec3):Vec3|null {
+  const hit=new World(map).ray({...point,y:point.y+.2},{x:0,y:-1,z:0},32);
+  return hit&&hit.normal.y>.5?{...hit.point,y:hit.point.y+.065}:null;
+}
 /** Telegraph durations and targets come from the authoritative frame, never local attack timers. */
 export class ThreatView {
   warnings = new Map<string, { group: T.Group; until: number }>();
@@ -40,17 +48,21 @@ export class ThreatView {
         new T.RingGeometry(radial - 0.14, radial, 64),
         material,
       );
+      ring.layers.set(1);
       ring.rotation.x = -Math.PI / 2;
       const center = text.includes("俯冲") ? target : actor.pos;
-      ring.position.set(center.x, 0.065, center.z);
+      const floor=warningGround(maps[snapshot.mapId],center);
+      if(floor)ring.position.copy(floor);else ring.visible=false;
       group.add(ring);
       const area = new T.Mesh(
         new T.CircleGeometry(radial, 64),
         material.clone(),
       );
+      area.layers.set(1);
       (area.material as T.MeshBasicMaterial).opacity = 0.09;
       area.rotation.x = -Math.PI / 2;
       area.position.copy(ring.position);
+      area.visible=ring.visible;
       group.add(area);
     } else if (text.includes("冲锋")) {
       const direction = new T.Vector3(
@@ -58,16 +70,20 @@ export class ThreatView {
         0,
         target.z - actor.pos.z,
       ).normalize();
-      const lane = new T.Mesh(new T.PlaneGeometry(5, 9.35), material);
-      lane.rotation.x = -Math.PI / 2;
-      lane.rotation.z = Math.atan2(-direction.x, -direction.z);
-      lane.position.set(
-        actor.pos.x + direction.x * 4.675,
-        0.065,
-        actor.pos.z + direction.z * 4.675,
-      );
-      group.add(lane);
+      // Short strips follow the collision floors instead of disappearing under upper decks.
+      let floorY=actor.pos.y;
+      for(let i=0;i<17;i++){
+        const distance=(i+.5)*.55;
+        const floor=warningGround(maps[snapshot.mapId],{x:actor.pos.x+direction.x*distance,y:floorY+.3,z:actor.pos.z+direction.z*distance});
+        if(!floor)continue;
+        floorY=floor.y-.065;
+        const lane = new T.Mesh(new T.PlaneGeometry(5,.55),material.clone());
+        lane.rotation.x=-Math.PI/2;lane.rotation.z=Math.atan2(-direction.x,-direction.z);
+        lane.position.copy(floor);lane.layers.set(1);group.add(lane);
+      }
+      material.dispose();
     } else {
+      material.dispose();
       const line = new T.Line(
         new T.BufferGeometry().setFromPoints([
           new T.Vector3(actor.pos.x, actor.pos.y + 1.3, actor.pos.z),

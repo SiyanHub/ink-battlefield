@@ -77,7 +77,7 @@ writeFileSync(
   JSON.stringify(
     {
       scope:
-        "16 default weapons; isolated ground arena; authoritative public input; stationary heavy target; not difficulty balance",
+        `${results.length} default weapons; isolated ground arena; authoritative public input; stationary heavy target; not difficulty balance`,
       results,
     },
     null,

@@ -8,6 +8,8 @@ export interface Member extends RoomMember {
   room?: Room;
   expires?: ReturnType<typeof setTimeout>;
   lastSeq: number;
+  lastInputAt: number;
+  inputReleased: boolean;
   inputs: InputFrame[];
 }
 export interface Room {
@@ -25,6 +27,8 @@ export interface GameServerOptions {
   host?: string;
   distDir?: string;
   reconnectMs?: number;
+  heartbeatIntervalMs?: number;
+  heartbeatTimeoutMs?: number;
   createSimulation?: (settings: RoomSettings) => Simulation;
 }
 export type SendMessage = (ws: WebSocket, message: object) => void;

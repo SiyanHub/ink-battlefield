@@ -17,6 +17,7 @@ test("a shot above the smaller paper operator head misses instead of hitting the
   s.advance(2);
   s.input("a",{...neutralInput(),seq:1,primary:true,pitch:-Math.atan2(1.77-1.62,8)});
   s.step();
+  s.advance(.1);
   assert.equal(s.getSnapshot().actors.find(a=>a.id==="b")!.hp,100);
 });
 
@@ -26,6 +27,7 @@ test("boss head hit volume follows its height rather than inflating with its bro
   const id=s.addEnemy("doodler",{x:0,y:0,z:0});
   s.input("a",{...neutralInput(),seq:1,primary:true,pitch:-Math.atan2(3.7-1.62,8)});
   s.step();
+  s.advance(.1);
   assert.equal(s.getSnapshot().actors.find(a=>a.id===id)!.hp,3600);
 });
 test("an offensive class skill ends spawn protection immediately", () => {
@@ -52,6 +54,8 @@ test("authoritative inputs consume ammunition once per fire interval and deal da
     sim.getSnapshot().actors.find((a) => a.id === "a")!.ammo.rifle.clip,
     29,
   );
+  assert.equal(sim.getSnapshot().actors.find((a) => a.id === "b")!.hp, 100);
+  sim.advance(.05);
   assert.ok(sim.getSnapshot().actors.find((a) => a.id === "b")!.hp < 100);
   sim.input("a", { ...neutralInput(), seq: 1, primary: true, slot: 2 });
   sim.step();
@@ -106,6 +110,8 @@ test("a kill preserves the enlarged magazine and refills only the configured amo
   );
   sim.input("a", { ...neutralInput(), seq: 2, primary: true });
   sim.step();
+  sim.input("a", { ...neutralInput(), seq: 3 });
+  sim.advance(.12);
   assert.equal(sim.getSnapshot().actors.find((a) => a.id === "a")!.kills, 1);
   assert.equal(
     sim.getSnapshot().actors.find((a) => a.id === "a")!.ammo.rifle.clip,
@@ -149,6 +155,7 @@ test("a large enemy can be hit at its visible head height", () => {
   const pitch = -Math.atan2(1.52 * 1.9 - 1.62, 8);
   s.input("a", { ...neutralInput(), seq: 1, primary: true, pitch });
   s.step();
+  s.advance(.1);
   assert.ok(
     s.getSnapshot().actors.find((a) => a.id === id)!.hp < 3500,
     "headshot lands at the rendered head, not an unrelated sphere",

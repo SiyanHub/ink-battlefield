@@ -26,15 +26,15 @@ export class SketchPipeline {
   });
   private quad=new T.Mesh(new T.PlaneGeometry(2,2),this.material);
   constructor(private renderer:T.WebGLRenderer){this.quad.frustumCulled=false;this.quadScene.add(this.quad);}
-  resize(width:number,height:number,pixelRatio:number) {
+  resize(width:number,height:number,pixelRatio:number,normalScale=1) {
     const w=Math.max(2,Math.floor(width*pixelRatio)),h=Math.max(2,Math.floor(height*pixelRatio));
-    this.normal.setSize(w,h);this.color.setSize(w,h);
+    this.normal.setSize(Math.max(2,Math.floor(w*normalScale)),Math.max(2,Math.floor(h*normalScale)));this.color.setSize(w,h);
     this.material.uniforms.uResolution.value.set(w,h);
     this.material.uniforms.uHatchScale.value=Math.max(1,pixelRatio);
   }
-  render(scene:T.Scene,camera:T.PerspectiveCamera,time:number,reduceMotion:boolean) {
+  render(scene:T.Scene,camera:T.PerspectiveCamera,time:number,reduceMotion:boolean,edgeFade=95) {
     const r=this.renderer,u=this.material.uniforms,mask=camera.layers.mask;
-    u.uTime.value=time;u.uNear.value=camera.near;u.uFar.value=camera.far;u.uBoil.value=reduceMotion?0:.18/1400;
+    u.uTime.value=time;u.uNear.value=camera.near;u.uFar.value=camera.far;u.uBoil.value=reduceMotion?0:.18/1400;u.uEdgeFade.value=edgeFade;
     const override=scene.overrideMaterial,fog=scene.fog;
     camera.layers.disable(1);scene.overrideMaterial=this.normalMaterial;scene.fog=null;
     r.setRenderTarget(this.normal);r.clear();r.render(scene,camera);

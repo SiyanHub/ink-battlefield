@@ -35,8 +35,8 @@ export function overlayFor(
 ): "results" | "upgrade" | "respawn" | "pause" | "none" {
   if (phase === "victory" || phase === "defeat") return "results";
   if (phase === "upgrade") return "upgrade";
-  if (!alive && online) return "respawn";
   if (menuOpen || phase === "paused") return "pause";
+  if (!alive && online) return "respawn";
   return "none";
 }
 import type { PaintSnapshot, PaintSurfaceSnapshot } from "../shared/contracts";

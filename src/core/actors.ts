@@ -1,5 +1,6 @@
 import type { ActorSnapshot, ClassId, Vec3 } from "../shared/contracts";
 import { neutralInput } from "../shared/contracts";
+import { teamInkColor } from "../shared/ink";
 import { classes, getLoadout } from "../content";
 import type { Runtime, ActorRuntime } from "./runtime";
 import { v } from "./math";
@@ -53,7 +54,7 @@ export function createPlayer(
     kills: 0,
     deaths: 0,
     upgrades: [],
-    color: c.color,
+    color: rt.solo ? c.color : teamInkColor(teamId, c.color),
     tint: 0,
   };
   return {

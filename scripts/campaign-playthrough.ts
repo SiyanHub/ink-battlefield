@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { LocalSession } from "../src/session/local";
 import { ProfileStore } from "../src/profile/store";
 import { maps, weapons, classes } from "../src/content";
@@ -185,7 +186,10 @@ while (totalSeconds < 2400) {
       z: center.z + Math.sin(a) * (2.2+Math.sin(totalSeconds*.13)*1.5),
     };
     input.slot = 2;
-    input.primary = true;
+    const melee = weapons[classes[selected].melee];
+    fireAge += 0.05;
+    // Semiautomatic melee needs a fresh press for every stroke, just like combat.
+    input.primary = melee.automatic || fireAge % (Math.max(0.15, melee.interval) + 0.1) < 0.1;
     input.pitch = 1.2;
     input.skill = selected === "artist";
   } else if (s.campaign?.objectiveKind === "defend")
@@ -253,10 +257,10 @@ const report = {
     ammo: a.ammo,
   })),
 };
-writeFileSync(
-  `artifacts/campaign-${selected}${unlocked ? "-unlocked" : ""}${restoreBetweenEncounters ? "-resume" : ""}${seed!==7421?'-'+seed:''}.json`,
-  JSON.stringify(report, null, 2),
-);
+const reportPath = process.argv.find(argument => argument.startsWith("--report="))?.slice(9) ??
+  `artifacts/campaign-${selected}${unlocked ? "-unlocked" : ""}${restoreBetweenEncounters ? "-resume" : ""}${seed!==7421?'-'+seed:''}.json`;
+mkdirSync(dirname(reportPath), { recursive: true });
+writeFileSync(reportPath, JSON.stringify(report, null, 2));
 session.dispose();
 console.log(
   JSON.stringify({

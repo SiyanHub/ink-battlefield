@@ -2,7 +2,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { WebSocket } from "ws";
 import { Simulation } from "../core/simulation";
 import { getLoadout } from "../content";
-import { neutralInput } from "../shared/contracts";
 import {
   fail,
   parseInput,
@@ -23,7 +22,7 @@ export class RoomRegistry {
   activeRooms = () => this.rooms.values();
   broadcast = (r: Room) => {
     r.snapshot.members = r.members.map(
-      ({ ws, token, room, expires, lastSeq, inputs, ...m }) => m,
+      ({ ws, token, room, expires, lastSeq, lastInputAt, inputReleased, inputs, ...m }) => m,
     );
     for (const m of r.members) this.send(m.ws, { type: "room", room: r.snapshot });
   };
@@ -61,7 +60,8 @@ export class RoomRegistry {
     const identity = parseHello(m);
     if (identity.token !== undefined) {
       const candidate = this.tokens.get(identity.token);
-      if (!candidate || candidate.connected) fail("重连凭证失效");
+      if (!candidate) fail("重连凭证失效");
+      if (candidate.connected) fail("原连接尚未断开，请稍后重连", "resume_pending");
       member = candidate;
       clearTimeout(member.expires);
       member.ws = ws;
@@ -79,6 +79,8 @@ export class RoomRegistry {
         connected: true,
         ws,
         lastSeq: -1,
+        lastInputAt: performance.now(),
+        inputReleased: true,
         inputs: [],
       };
       this.tokens.set(member.token, member);
@@ -138,6 +140,8 @@ export class RoomRegistry {
         return;
       }
       member.lastSeq = frame.seq;
+      member.lastInputAt = performance.now();
+      member.inputReleased = false;
       member.inputs.push(frame);
       return;
     }
@@ -157,6 +161,7 @@ export class RoomRegistry {
       for (const p of r.members) {
         p.ready = false;
         p.lastSeq = -1;
+        p.inputReleased = true;
         p.inputs = [];
       }
       this.broadcast(r);
@@ -200,6 +205,8 @@ export class RoomRegistry {
       r.broadcastTicks = 0;
       for (const p of r.members) {
         p.lastSeq = -1;
+        p.lastInputAt = performance.now();
+        p.inputReleased = true;
         p.inputs = [];
         r.simulation.addPlayer(
           p.id,
@@ -223,10 +230,8 @@ export class RoomRegistry {
       return;
     }
     member.inputs = [];
-    member.room.simulation?.input(member.id, {
-      ...neutralInput(),
-      seq: ++member.lastSeq,
-    });
+    member.inputReleased = true;
+    member.room.simulation?.releaseInput(member.id);
     this.broadcast(member.room);
     const disconnected = member;
     member.expires = setTimeout(

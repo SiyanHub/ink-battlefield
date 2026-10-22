@@ -276,9 +276,131 @@ function roller(b: Builder) {
   b.tube("handle-collar",.027,.02,[0,0,-.07],wood);
   b.anchors([0,0,.045]);
 }
+function dual(b: Builder) {
+  // Central aim origin; the two physical muzzles remain present on the pistols.
+  b.add("muzzle",new T.Object3D(),[0,.029,-.331]);
+  for(const side of [-1,1]) {
+    const pistol=new Builder(b.color);
+    pistol.block("slide",[.065,.065,.29],[0,.028,-.075],metal);
+    pistol.profile("pistol-frame",[[-.18,0],[.095,0],[.12,-.045],[.08,-.064],[-.15,-.044]],.059);
+    pistol.profile("pistol-grip",[[.047,-.035],[.11,-.04],[.135,-.174],[.071,-.188],[.031,-.072]],.055,dark);
+    pistol.block("magazine",[.051,.025,.068],[0,-.183,.10],wood);
+    pistol.tube("barrel",.017,.14,[0,.029,-.22],dark);
+    pistol.muzzle(-.3,.029,.024); pistol.sights(-.20);
+    const guard=pistol.add("trigger-guard",shape(new T.TorusGeometry(.027,.005,5,12),metal),[0,-.065,.016]);guard.rotation.y=Math.PI/2;
+    for(let i=0;i<4;i++) for(const x of [-.034,.034]) pistol.contour("slide-ridge",[[x,.009,.007+i*.015],[x,.049,.007+i*.015]],dark);
+    b.add(side<0?"left-pistol":"right-pistol",pistol.root,[side*.145,0,side<0?-.025:0]);
+  }
+  b.anchors([.145,-.126,.087],[-.145,-.126,.062]);
+}
+function scatter(b: Builder) {
+  b.profile("receiver",[[-.26,.065],[.22,.065],[.28,.01],[.24,-.06],[-.24,-.06]],.115);
+  b.grip();b.stock(.37);
+  b.block("rear-magazine",[.10,.145,.12],[0,-.12,.245],dark);
+  b.block("foregrip",[.087,.073,.17],[0,-.06,-.28],wood);
+  b.block("chamber-bank",[.15,.105,.17],[0,.026,-.397],metal);
+  for(const [x,y] of [[0,.026],[-.048,.026],[.048,.026],[-.024,.063],[.024,-.011]]) {
+    b.tube("scatter-nozzle",.017,.13,[x,y,-.47],dark);
+    b.add("scatter-bore",new T.Mesh(new T.CircleGeometry(.012,8),new T.MeshBasicMaterial({color:dark})),[x,y,-.536]).rotation.y=Math.PI;
+  }
+  b.add("muzzle",new T.Object3D(),[0,.026,-.542]);b.sights(-.37);
+  b.block("ink-feed",[.12,.017,.09],[0,.073,-.10],b.color);
+  b.anchors([0,-.13,.155],[0,-.087,-.28]);
+}
+function rocket(b: Builder) {
+  b.tube("launch-tube",.092,1.1,[0,.055,-.19],wood,16);
+  b.tube("front-collar",.106,.08,[0,.055,-.70],metal,16);
+  b.muzzle(-.765,.055,.103);
+  const exhaust=b.add("exhaust-bell",shape(new T.CylinderGeometry(.124,.092,.16,16,1,true),metal),[0,.055,.43]);exhaust.rotation.x=Math.PI/2;
+  b.block("shoulder-pad",[.15,.054,.21],[0,-.065,.25],dark);
+  for(const z of [-.49,-.07,.25]) b.tube("tube-band",.096,.025,[0,.055,z],dark,16);
+  b.block("trigger-unit",[.075,.08,.14],[.075,-.068,.045]);
+  b.block("trigger-grip",[.052,.14,.061],[.075,-.17,.055],dark);
+  b.block("foregrip",[.07,.095,.09],[0,-.1,-.36],dark);
+  b.link("carry-handle",[.10,.14,.10],[.10,.14,-.16],.016,metal);
+  for(const z of [-.16,.1]) b.link("handle-post",[.10,.06,z],[.10,.14,z],.01,metal);
+  b.sights(-.49);
+  b.anchors([.075,-.17,.055],[0,-.13,-.36]);
+}
+function minigun(b: Builder) {
+  b.tube("motor-housing",.10,.32,[0,.025,-.03],metal,12);
+  b.grip();b.stock(.33);
+  const cluster=new Builder(b.color);
+  for(let i=0;i<6;i++) {
+    const a=i*Math.PI/3,x=Math.cos(a)*.06,y=Math.sin(a)*.06;
+    cluster.tube("rotary-barrel",.018,.51,[x,y,-.47],dark);
+    cluster.tube("rotary-muzzle",.022,.035,[x,y,-.73],metal);
+    cluster.add("rotary-bore",new T.Mesh(new T.CircleGeometry(.012,8),new T.MeshBasicMaterial({color:dark})),[x,y,-.749]).rotation.y=Math.PI;
+  }
+  for(const z of [-.29,-.63]) cluster.add("barrel-brace",shape(new T.TorusGeometry(.081,.011,6,16),metal),[0,0,z]);
+  b.add("barrel-cluster",cluster.root,[0,.025,0]);
+  b.tube("ammo-drum",.12,.15,[.16,-.05,.02],wood).rotation.set(0,0,Math.PI/2);
+  b.block("feed-chute",[.13,.048,.08],[.065,-.045,.015],dark);
+  for(let i=0;i<5;i++) b.tube("feed-round",.008,.075,[.08+i*.02,-.014,.018],metal);
+  b.link("top-handle",[-.10,.17,-.14],[.10,.17,-.14],.017,dark);
+  for(const x of [-.10,.10]) b.link("handle-post",[x,.05,-.14],[x,.17,-.14],.013,metal);
+  b.add("muzzle",new T.Object3D(),[0,.025,-.76]);
+  b.anchors([0,-.13,.155],[-.08,.17,-.14]);
+}
+function crossbow(b: Builder) {
+  b.profile("stock",[[.37,.024],[.10,.02],[.06,-.08],[.14,-.18],[.19,-.07],[.37,-.105]],.062,wood);
+  b.block("rail",[.052,.042,.67],[0,.022,-.23],metal);
+  b.profile("foregrip",[[-.17,-.015],[-.37,-.015],[-.36,-.075],[-.18,-.075]],.071,wood);
+  const limbs=b.add("crossbow-limbs",new T.Group());
+  for(const side of [-1,1]) {
+    const curve=new T.CatmullRomCurve3([[0,.017,-.40],[side*.14,.02,-.46],[side*.29,.027,-.43],[side*.40,.035,-.34]].map(p=>new T.Vector3(...p as V)));
+    limbs.add(shape(new T.TubeGeometry(curve,12,.018,6,false),wood));
+  }
+  b.contour("crossbow-string",[[-.40,.035,-.34],[0,.035,.047],[.40,.035,-.34]],dark);
+  b.block("bolt-magazine",[.075,.085,.16],[0,.085,-.10],paper);
+  b.link("loaded-bolt",[0,.06,.02],[0,.06,-.59],.006,wood);
+  b.cone("bolt-tip",.017,.045,[0,.06,-.607],metal,4);
+  b.block("feather",[.042,.003,.065],[0,.06,-.005],b.color);
+  b.add("muzzle",new T.Object3D(),[0,.06,-.637]);
+  b.anchors([0,-.105,.125],[0,-.065,-.28]);
+}
+function nailgun(b: Builder) {
+  b.profile("receiver",[[-.23,.06],[.14,.06],[.17,.005],[.11,-.06],[-.22,-.06]],.086,metal);
+  b.grip();b.stock(.34);
+  for(const x of [-.027,.027]) b.link("nail-rail",[x,.026,-.14],[x,.026,-.65],.013,dark);
+  b.block("rail-brace",[.088,.073,.055],[0,.026,-.59],wood);
+  b.tube("pressure-tank",.058,.28,[.087,.045,.017],b.color,12);
+  for(const z of [-.10,.13]) b.tube("tank-cap",.061,.025,[.087,.045,z],metal);
+  b.profile("magazine",[[-.155,-.05],[-.074,-.05],[-.08,-.24],[-.155,-.24]],.047,wood);
+  for(let i=0;i<4;i++) b.link("stored-nail",[.026,-.08-i*.037,-.15],[.026,-.08-i*.037,-.085],.004,metal);
+  b.tube("barrel",.019,.13,[0,.026,-.659],metal);b.muzzle(-.73,.026,.025);
+  b.sights(-.58);b.anchors([0,-.13,.155],[0,-.06,-.29]);
+}
+function bucket(b: Builder) {
+  b.add("bucket-body",shape(new T.CylinderGeometry(.17,.125,.30,16,1,true),paper),[0,-.045,-.15]);
+  b.add("bucket-base",shape(new T.CylinderGeometry(.126,.126,.018,16),metal),[0,-.20,-.15]);
+  const rim=b.add("bucket-rim",shape(new T.TorusGeometry(.17,.009,6,20),metal),[0,.105,-.15]);rim.rotation.x=Math.PI/2;
+  const ink=b.add("pooled-ink",shape(new T.CircleGeometry(.157,20),b.color),[0,.087,-.15]);ink.rotation.x=-Math.PI/2;
+  const handle=new T.CatmullRomCurve3([[-.17,.055,-.15],[-.20,.20,-.15],[0,.29,-.15],[.20,.20,-.15],[.17,.055,-.15]].map(p=>new T.Vector3(...p as V)));
+  b.add("bucket-handle",shape(new T.TubeGeometry(handle,18,.009,6,false),metal));
+  b.link("handle-wrap",[.17,.09,-.15],[.195,.18,-.15],.019,dark);
+  b.profile("pouring-lip",[[-.28,.10],[-.355,.075],[-.355,.055],[-.29,.064]],.095,metal);
+  for(const x of [-.13,.13]) b.link("bucket-seam",[x,-.18,-.19],[x,.09,-.24],.003,wood);
+  b.add("muzzle",new T.Object3D(),[0,.076,-.364]);
+  b.anchors([.185,.14,-.15],[-.13,-.17,-.15]);
+}
+function bubble(b: Builder) {
+  b.block("pump-body",[.10,.10,.30],[0,-.005,-.09],paper);b.grip();
+  b.add("bubble-reservoir",shape(new T.SphereGeometry(.13,16,10),b.color),[0,.11,.055]);
+  b.tube("reservoir-band",.133,.027,[0,.11,.055],metal);
+  b.tube("reservoir-cap",.044,.06,[0,.25,.055],wood).rotation.set(0,0,0);
+  b.tube("nozzle",.043,.19,[0,.025,-.31],metal);
+  b.add("bubble-wand",shape(new T.TorusGeometry(.075,.014,7,18),wood),[0,.025,-.435]);
+  for(let i=0;i<8;i++) {const a=i*Math.PI/4;b.add("wand-tooth",shape(new T.SphereGeometry(.011,6,4),metal),[Math.cos(a)*.065,.025+Math.sin(a)*.065,-.435]);}
+  b.link("air-hose",[.052,-.013,.06],[.07,-.06,-.25],.009,dark);
+  b.block("foregrip",[.06,.067,.09],[0,-.065,-.27],wood);
+  b.add("muzzle",new T.Object3D(),[0,.025,-.455]);
+  b.anchors([0,-.13,.155],[0,-.09,-.27]);
+}
 const builders: Record<string,(b: Builder)=>void> = {
   rifle:b=>rifle(b,"rifle"),smg:b=>rifle(b,"smg"),carbine:b=>rifle(b,"carbine"),lmg:b=>rifle(b,"lmg"),
   shotgun,revolver,sniper,grenade,pencil,brush,pen,katana,hammer,compass,bow,roller,
+  dual,scatter,rocket,minigun,crossbow,nailgun,bucket,bubble,
 };
 export function buildWeapon(w: WeaponDefinition) {
   const b=new Builder(w.color); (builders[w.model]??builders.rifle)(b); b.root.name=w.model; return b.root;

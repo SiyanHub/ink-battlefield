@@ -2,8 +2,11 @@ import { classes, maps, getLoadout } from "../content";
 import { neutralInput } from "../shared/contracts";
 import type { RoomSettings, InputFrame, ClassId } from "../shared/contracts";
 
-export function fail(message: string): never {
-  throw new Error(message);
+export class ProtocolError extends Error {
+  constructor(message: string, readonly code?: "resume_pending") { super(message); }
+}
+export function fail(message: string, code?: "resume_pending"): never {
+  throw new ProtocolError(message, code);
 }
 export type WireMessage = Record<string, unknown> & { type: string };
 

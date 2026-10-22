@@ -45,7 +45,7 @@ test("battle feedback confirms own hits and kills, expires, deduplicates replay 
   ];
   feedback.apply({ snapshot, events }, playerId, 10);
   let html = renderHud(snapshot, playerId, false, feedback.view(10));
-  assert.match(html, /命中/);
+  assert.match(html, /hit-confirmation lethal/);
   assert.match(html, /击倒 · 目标&lt;&amp;&gt;/);
   feedback.apply({ snapshot, events }, playerId, 13);
   html = renderHud(snapshot, playerId, false, feedback.view(13));
@@ -55,7 +55,7 @@ test("battle feedback confirms own hits and kills, expires, deduplicates replay 
   feedback.reset();
   assert.doesNotMatch(renderHud(snapshot, playerId, false, feedback.view(14)), /命中|击倒 ·/);
   feedback.apply({ snapshot, events }, playerId, 15);
-  assert.match(renderHud(snapshot, playerId, false, feedback.view(15)), /命中/);
+  assert.match(renderHud(snapshot, playerId, false, feedback.view(15)), /hit-confirmation lethal/);
   session.dispose();
 });
 

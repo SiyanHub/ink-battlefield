@@ -21,6 +21,30 @@ export class EnemyAttacks {
         ? ["俯冲！保持移动", "羽刃扇射", "回旋弹幕"][n]
         : ["墨潮轰击", "召唤纸兵", "环形弹幕"][n];
   }
+  lockTarget(s: ActorRuntime, target: Vec3): Vec3 {
+    let locked = target;
+    const definition = this.rt.enemies[s.actor.enemyId!];
+    s.status.diveLocked = 0;
+    if (definition.behavior === "boss-flight" && (s.status.attackCycle ?? 0) % 3 === 0) {
+      const floor = this.rt.world.ray(add(target, v(0, 5, 0)), v(0, -1, 0), 10);
+      if (floor) { locked = floor.point; s.status.diveLocked = 1; }
+    }
+    s.status.targetX = locked.x;
+    s.status.targetY = locked.y;
+    s.status.targetZ = locked.z;
+    return { ...locked };
+  }
+  updateRush(s: ActorRuntime, player: ActorSnapshot, device?: DefenseTarget) {
+    const rt = this.rt, a = s.actor;
+    if ((s.status.rushUntil ?? 0) <= rt.time || s.status.rushHit) return;
+    const target = device?.position ?? player.pos;
+    if (distance(a.pos, target) > (device ? 1.4 : a.radius + player.radius + .2) ||
+      !rt.world.visible(add(a.pos, v(0, 1, 0)), add(target, v(0, 1, 0)))) return;
+    s.status.rushHit = 1;
+    const damage = rt.enemies[a.enemyId!].damage;
+    if (device) device.damage(damage);
+    else applyDamage(rt, player, a, damage, player.pos, a.color, true);
+  }
   private bolt(a: ActorSnapshot, target: Vec3, damage: number, yawOffset = 0) {
     const rt = this.rt,
       o = add(a.pos, v(0, a.radius > 1 ? 2 : 1.2, 0)),
@@ -52,6 +76,15 @@ export class EnemyAttacks {
       a = s.actor,
       d = rt.enemies[a.enemyId!],
       center = add(a.pos, v(0, 1.2, 0));
+    if (d.behavior === "rush") {
+      const direction = norm(v(s.status.targetX - a.pos.x, 0, s.status.targetZ - a.pos.z));
+      s.status.rushX = direction.x;
+      s.status.rushZ = direction.z;
+      s.status.rushUntil = rt.time + .42;
+      s.status.recoverUntil = s.status.rushUntil + .75;
+      s.status.rushHit = 0;
+      return;
+    }
     if (device) {
       if (
         distance(a.pos, device.position) < d.range + 1 &&
@@ -82,8 +115,9 @@ export class EnemyAttacks {
         )
           applyDamage(rt, player, a, d.damage, player.pos, a.color);
       } else if (d.behavior === "boss-flight" && cycle === 0) {
-        const origin = add(locked, v(0, 5, 0)),
-          floor = rt.world.ray(origin, v(0, -1, 0), 10);
+        const floor = s.status.diveLocked
+          ? rt.world.ray(add(locked, v(0, .2, 0)), v(0, -1, 0), .4)
+          : rt.world.ray(add(locked, v(0, 5, 0)), v(0, -1, 0), 10);
         if (floor) {
           a.pos = { ...floor.point };
           if (distance(player.pos, floor.point) < 3.2)

@@ -1,9 +1,9 @@
 import {weapons} from "../../content/weapons";
-import type {GameEvent} from "../../shared/contracts";
+import type {GameEvent, Vec3} from "../../shared/contracts";
 import {soundPalette, synthesizeSketch} from "../audio/Palette";
 
 interface Voice { source: AudioBufferSourceNode; gain: GainNode; local: boolean; }
-/** Local, finite WebAudio foley; one source per event, at most twelve sources. */
+/** Local, finite WebAudio foley; one source per event, at most sixteen sources. */
 export class GameAudio {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -43,7 +43,7 @@ export class GameAudio {
     }
   }
 
-  event(e: GameEvent, local: boolean) {
+  event(e: GameEvent, local: boolean, listener?: Vec3, received = false) {
     const ctx = this.context, master = this.master;
     if (!ctx || !master || ctx.state !== "running" || this.disposed) return;
     const level = this.level(), now = ctx.currentTime;
@@ -55,31 +55,36 @@ export class GameAudio {
       if (!e.weaponId) return;
       name = weapons[e.weaponId]?.model ?? e.weaponId;
     } else if (e.type === "hit" || e.type === "skill" || e.type === "death") {
-      name = e.type;
+      name = e.type === "hit" && received ? "hurt" : e.type;
+    } else if (e.type === "paint" && e.pos) {
+      name = "impact";
     } else return;
     const buffer = this.buffers.get(name);
     if (!buffer) return;
-    // Pellet/spray rays emit multiple shot events. Coalesce only this actor's sound.
+    // Coalesce rapid events from the same actor without silencing other actors.
     const key = `${e.actorId ?? "world"}:${e.type}:${name}`;
-    const cooldown = e.type === "shot" ? .026 : e.type === "hit" ? .045 : .06;
+    const cooldown = e.type === "shot" ? .026 : e.type === "hit" ? .045 : e.type === "paint" ? .10 : .06;
     if (now - (this.recent.get(key) ?? -Infinity) < cooldown) return;
     this.recent.delete(key);
     this.recent.set(key, now);
     if (this.recent.size > 96) this.recent.delete(this.recent.keys().next().value!);
-    // Drop excess arrivals without cutting a waveform; reserve four slots for local events.
-    if (this.voices.size >= 12 || (!local && [...this.voices].filter(v => !v.local).length >= 8)) return;
+    // Drop excess arrivals without cutting a waveform; reserve eight slots for local events.
+    const priority=local||received;
+    if (this.voices.size >= 16 || (!priority && [...this.voices].filter(v => !v.local).length >= 8)) return;
     const source = ctx.createBufferSource(), gain = ctx.createGain();
     source.buffer = buffer;
     const rate = 1 + ((Math.abs(e.id) % 7) - 3) * .004;
     source.playbackRate.value = rate;
     const end = now + buffer.duration / rate;
-    const amplitude = (local ? .25 : .075) * (e.type === "hit" ? .7 : 1);
+    const distance=e.pos&&listener?Math.hypot(e.pos.x-listener.x,e.pos.y-listener.y,e.pos.z-listener.z):0;
+    const attenuation=priority?1:Math.max(0,1-distance/45)**2;
+    const amplitude=(priority?.31:.105)*attenuation*(e.type==="paint"?.32:e.type==="death"?1.2:1);
     gain.gain.setValueAtTime(0, now);
     gain.gain.linearRampToValueAtTime(amplitude, now + .002);
     gain.gain.setValueAtTime(amplitude, Math.max(now + .002, end - .012));
     gain.gain.linearRampToValueAtTime(0, end);
     source.connect(gain).connect(master);
-    const voice = {source, gain, local};
+    const voice = {source, gain, local:priority};
     this.voices.add(voice);
     source.onended = () => {
       source.disconnect(); gain.disconnect(); this.voices.delete(voice);

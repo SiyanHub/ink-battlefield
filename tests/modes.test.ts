@@ -24,6 +24,7 @@ test("a player cannot change class alive, but death selection applies at the fiv
   s.input("a", { ...neutralInput(), seq: 1, primary: true });
   s.step();
   s.input("a", { ...neutralInput(), seq: 2 });
+  s.advance(.1);
   assert.equal(s.getSnapshot().actors[1].alive, false);
   s.command("b", { type: "respawn", classId: "heavy", weapons: ["grenade"] });
   s.advance(5.1);

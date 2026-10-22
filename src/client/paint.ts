@@ -28,7 +28,7 @@ export class PaintView {
         new T.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          opacity: 0.82,
+          opacity: 1,
           depthWrite: false,
           side: T.DoubleSide,
           polygonOffset: true,

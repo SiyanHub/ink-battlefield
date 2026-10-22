@@ -13,6 +13,8 @@ test("an added weapon and mode run through the unchanged public simulation inter
   sim.addPlayer("p", "试笔", "artist", ["example-chalk"]);
   sim.input("p", { ...neutralInput(), seq: 1, primary: true, pitch: 1.2 });
   sim.step();
+  sim.input("p", { ...neutralInput(), seq: 2, pitch: 1.2 });
+  sim.advance(.1);
   const frame = sim.takeFrame();
   assert.equal(frame.snapshot.actors[0].weaponId, "example-chalk");
   assert.ok(

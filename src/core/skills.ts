@@ -51,7 +51,6 @@ export const skillBehaviors = new Map<string, SkillBehavior>([
         o = add(a.pos, v(0, 1.3, 0));
       a.protectedUntil = 0;
       a.skillUntil = rt.time + 0.5;
-      const colors = [0xe85b87, 0xe8bc43, 0x53bdb4, 0x8968cf];
       for (let k = 0; k < 32; k++) {
         const angle = (k * Math.PI * 2) / 32,
           dir = norm(v(Math.cos(angle), -0.28, Math.sin(angle)));
@@ -64,7 +63,7 @@ export const skillBehaviors = new Map<string, SkillBehavior>([
             h.surfaceId,
             2.2 * (1 + rt.effect(a, "paint")),
             a.teamId,
-            colors[k % 4],
+            a.color,
           );
       }
       for (const { actor: t } of rt.actors.values())
@@ -73,7 +72,7 @@ export const skillBehaviors = new Map<string, SkillBehavior>([
           distance(t.pos, a.pos) < 6 &&
           rt.world.visible(o, add(t.pos, v(0, 1, 0)))
         )
-          applyDamage(rt, t, a, rt.solo ? 70 : 25, t.pos, colors[0]);
+          applyDamage(rt, t, a, rt.solo ? 70 : 25, t.pos, a.color);
     },
   ],
 ]);
@@ -131,7 +130,7 @@ export function updateSkills(rt: Runtime, s: ActorRuntime) {
         actorId: a.id,
         pos: origin,
         to: { ...enemy.pos },
-        color: 0x5896d6,
+        color: a.color,
       });
     } else if (candidates[0]) {
       s.status.grappleUntil = rt.time + 0.45;
@@ -145,7 +144,7 @@ export function updateSkills(rt: Runtime, s: ActorRuntime) {
         actorId: a.id,
         pos: origin,
         to: candidates[0],
-        color: 0x5896d6,
+        color: a.color,
       });
     }
   }

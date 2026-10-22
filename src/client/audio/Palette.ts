@@ -37,9 +37,19 @@ export const soundPalette: Readonly<Record<string, SoundSketch>> = {
   hammer: sketch(.28, noise(.22, 480, 1500, .65, .065), tone(.19, 150, 65, .22, .04)),
   compass: sketch(.14, noise(.1, 2300, 6200, .55, .02), tone(.06, 960, 610, .12, .025)),
   roller: sketch(.24, noise(.21, 650, 220, .65, .025, 42), tone(.17, 130, 65, .16)),
-  hit: sketch(.09, noise(.045, 2700, 1400, .38), tone(.055, 1460, 1080, .23)),
+  dual: sketch(.14, noise(.055, 4100, 1600, .84), tone(.10, 240, 78, .48)),
+  scatter: sketch(.23, noise(.12, 2400, 500, .84), tone(.17, 170, 52, .54)),
+  rocket: sketch(.43, noise(.34, 650, 1500, .72, .018), tone(.23, 90, 36, .7)),
+  minigun: sketch(.095, noise(.045, 3000, 900, .76), tone(.07, 190, 85, .36)),
+  crossbow: sketch(.25, tone(.17, 370, 140, .45), noise(.075, 2500, 900, .48), tone(.045, 1700, 760, .15)),
+  nailgun: sketch(.26, noise(.045, 5600, 1800, .8), tone(.13, 480, 75, .58), noise(.17, 1200, 280, .22)),
+  bucket: sketch(.36, noise(.28, 950, 190, .74, .026, 23), tone(.20, 260, 48, .52)),
+  bubble: sketch(.32, tone(.25, 420, 74, .62), noise(.18, 640, 210, .35, .02, 19)),
+  hit: sketch(.13, noise(.055, 2300, 650, .63), tone(.085, 195, 57, .58), tone(.045, 1450, 1050, .21)),
+  hurt: sketch(.18, noise(.10, 750, 240, .62), tone(.14, 130, 45, .48)),
+  impact: sketch(.12, noise(.085, 1100, 260, .5), tone(.07, 230, 65, .25)),
   skill: sketch(.36, noise(.3, 450, 1700, .42, .04), tone(.27, 180, 430, .32), tone(.18, 360, 650, .12, .06)),
-  death: sketch(.34, noise(.25, 1500, 280, .45, .008), tone(.26, 440, 150, .3), tone(.16, 660, 220, .13, .035)),
+  death: sketch(.46, noise(.32, 1700, 230, .68, .008, 31), tone(.22, 140, 39, .66), tone(.19, 740, 280, .2, .035)),
 };
 
 /** Render without a live AudioContext so synthesis can be inspected independently. */

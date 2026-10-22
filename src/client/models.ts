@@ -2,14 +2,20 @@ import * as T from "three";
 import {enemies} from "../content";
 import type {ActorSnapshot} from "../shared/contracts";
 import {actorGeometry} from "../shared/actor-geometry";
+import {teamInk} from "../shared/ink";
 import {part,label} from "./primitives";
 import {createPaperRig,posePaperRig} from "./actors/PaperRig";
 
 /** Public model boundary: shared head dimensions, paper anatomy and independent costumes. */
 export function actorModel(a:ActorSnapshot,_enemyIndex=0){
   const root=new T.Group(),dims=actorGeometry(a);
-  const pigment=a.teamId==="red"?0xb94c51:a.teamId==="blue"?0x47779a:a.color;
+  const pigment=a.teamId==="red"?teamInk.red.color:a.teamId==="blue"?teamInk.blue.color:a.color;
   createPaperRig(root,a,pigment);
+  // A slightly stronger pencil silhouette separates moving paper figures from map hatching.
+  root.traverse(o=>{
+    if(o instanceof T.LineSegments&&o.material instanceof T.LineBasicMaterial){o.material.opacity=.46;o.material.color.setHex(0x424039);}
+    if(o instanceof T.Mesh&&o.material instanceof T.MeshLambertMaterial)o.material.color.multiplyScalar(.92);
+  });
   const top=(dims.headHeight+dims.headRadius)/dims.heightScale;
   const hp=new T.Mesh(new T.PlaneGeometry(.55,.028),new T.MeshBasicMaterial({color:pigment,side:T.DoubleSide}));
   hp.name="health";hp.layers.set(1);part(root,hp,0,top+.15,0);

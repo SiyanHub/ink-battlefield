@@ -10,6 +10,7 @@ const items=Object.values(weapons);
 const weapon=document.querySelector<HTMLSelectElement>("#weapon")!;
 weapon.innerHTML=items.map(w=>'<option value="'+w.id+'">'+w.name+'</option>').join("");
 const mode=document.querySelector<HTMLSelectElement>("#view")!;
+mode.querySelector('option[value="gallery"]')!.textContent=`${items.length} 件轮廓总览`;
 const action=document.querySelector<HTMLSelectElement>("#action")!;
 const labels=document.querySelector<HTMLElement>("#labels")!;
 labels.innerHTML=items.map((w,i)=>'<span>'+String(i+1).padStart(2,"0")+' / '+w.name+'</span>').join("");
@@ -31,9 +32,11 @@ function render() {
  document.querySelector<HTMLElement>("#cross")!.style.display=mode.value==="first"?"block":"none";
  if(mode.value==="gallery"){
   renderer.setScissorTest(true);
-  const cellW=width/4,cellH=height/4;side.aspect=cellW/cellH;side.updateProjectionMatrix();
+  const columns=Math.max(1,Math.round(Math.sqrt(items.length*width/height*.75))),rows=Math.ceil(items.length/columns);
+  labels.style.gridTemplateColumns=`repeat(${columns},1fr)`;labels.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  const cellW=width/columns,cellH=height/rows;side.aspect=cellW/cellH;side.updateProjectionMatrix();
   scenes.forEach((s,i)=>{
-   const x=(i%4)*cellW,y=height-(Math.floor(i/4)+1)*cellH;
+   const x=(i%columns)*cellW,y=height-(Math.floor(i/columns)+1)*cellH;
    renderer.setViewport(x,y,cellW,cellH);renderer.setScissor(x,y,cellW,cellH);renderer.render(s,side);
   });
  }else{

@@ -9,6 +9,7 @@ export function applyDamage(
   point: Vec3,
   color: number,
   melee = false,
+  impact?: { weaponId?: string; normal?: Vec3 },
 ) {
   if (
     !target.alive ||
@@ -41,6 +42,7 @@ export function applyDamage(
     pos: point,
     amount,
     color,
+    ...impact,
   });
   if (
     source &&
@@ -81,6 +83,7 @@ export function applyDamage(
     targetId: target.id,
     pos: add(target.pos, { x: 0, y: 1, z: 0 }),
     color,
+    ...impact,
   });
   rt.onDeath(target, source);
   // Body ink falls onto actual geometry; wall hit must not paint an occluded floor.

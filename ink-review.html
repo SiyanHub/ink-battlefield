@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>厚涂油墨检视 · 墨绘战场</title>
+    <style>
+      :root{font-family:system-ui,sans-serif;color:#343b40;background:#ece9df;font-synthesis:none}
+      *{box-sizing:border-box}body{margin:0;padding:30px;max-width:1500px;margin-inline:auto}h1{font-size:28px;margin:0 0 10px}p{line-height:1.6;margin:8px 0 20px;color:#5c656b}h2{font-size:17px;margin:0 0 12px}.swatch{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px}.blue{background:#1977bd}.red{background:#e05b35}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}article,.stage{padding:18px;background:#f9f6ed;border:1px solid #bbb8ae;border-radius:10px}article canvas{width:100%;aspect-ratio:4/3;display:block;background:#f5f1e6}article p{font-size:13px;margin-bottom:0}.stage{margin-top:18px}.stage canvas{display:block;width:100%;height:450px;border-radius:6px}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}button{font:inherit;font-size:14px;padding:9px 14px;border-radius:5px;border:1px solid #8e999f;background:#fffdf7;color:#293b4a;cursor:pointer}button:hover{background:#e6edf1}button:disabled{opacity:.5;cursor:wait}pre{font-size:12px;line-height:1.5;overflow:auto;background:#202a32;color:#e6edf3;padding:18px;max-height:450px;border-radius:8px;white-space:pre-wrap}.note{font-size:13px}#checks{border-left:3px solid #1977bd;padding-left:12px}@media(max-width:800px){body{padding:18px}.grid{grid-template-columns:1fr}.stage canvas{height:330px}}
+    </style>
+  </head>
+  <body>
+    <h1>厚涂油墨检视</h1>
+    <p><span class="swatch blue"></span>蓝墨 <span class="swatch red"></span>朱墨 · 同色连成涂层，覆色保持归属。此页仅用于开发验收，不进入游戏构建。</p>
+    <section class="grid">
+      <article><h2>01 同色连片</h2><canvas id="merged" width="512" height="384"></canvas><p>连续饱满的中间、圆润不规则边缘、少量深色堆边与微光。</p></article>
+      <article><h2>02 新墨覆盖</h2><canvas id="overpaint" width="512" height="384"></canvas><p>朱墨叠在蓝墨上；中央独立的一格朱墨不会被蓝色邻居压掉。</p></article>
+      <article><h2>03 笔触与飞溅</h2><canvas id="spots" width="512" height="384"></canvas><p>连续拖痕与孤立小滴，共用当前逻辑格；不累积历史贴花。</p></article>
+    </section>
+    <section class="stage"><h2>实际 3D 分面 · 地板 / 墙面 / 高台</h2><canvas id="world"></canvas><p class="note">使用游戏的 PaintView、PaintField 与素描管线；固定相机便于截图对照。高台和墙面使用各自的真实表面。</p></section>
+    <div class="controls"><button id="overcoat">追加朱墨覆盖</button><button id="reset">恢复初始构图</button><button id="verify">运行真实像素一致性检查</button><button id="benchmark">运行 1024² 局部更新测量</button></div>
+    <p id="checks">等待像素检查。</p>
+    <p class="note">耗时只覆盖 CPU 光栅化与 Canvas 写入，不包含 WebGL 纹理上传、后处理或整局 FPS。</p>
+    <pre id="report">可点击按钮查看原始结果。</pre>
+    <script type="module" src="/src/ink-review.ts"></script>
+  </body>
+</html>

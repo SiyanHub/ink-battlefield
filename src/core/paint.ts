@@ -18,6 +18,8 @@ export class PaintField {
     }
   >();
   private revision = 0;
+  private scoringArea = 0;
+  private readonly ownerAreas = new Map<string, number>();
   constructor(surfaces: PaintSurface[], occluders: BoxDefinition[] = []) {
     for (const surface of surfaces) {
       const width = Math.ceil(surface.width / surface.cellSize),
@@ -42,8 +44,13 @@ export class PaintField {
                 point.y + 0.08 > b.center.y - b.size.y / 2 &&
                 point.y + 0.08 < b.center.y + b.size.y / 2,
             )
-          )
+          ) {
             valid.add(y * width + x);
+            if (surface.scoring)
+              this.scoringArea +=
+                Math.min(surface.cellSize, surface.width - x * surface.cellSize) *
+                Math.min(surface.cellSize, surface.height - y * surface.cellSize);
+          }
         }
       this.fields.set(surface.id, {
         surface,
@@ -85,7 +92,7 @@ export class PaintField {
         if (dx * dx + dy * dy > radius * radius || !f.valid.has(index))
           continue;
         const cell: PaintCell = [index, color & 0xffffff, owner];
-        f.cells.set(index, cell);
+        this.recordCell(s, f.cells, cell);
         cells.push(cell);
       }
     if (cells.length) {
@@ -95,6 +102,13 @@ export class PaintField {
     return cells;
   }
   coverage(zone?: CaptureZone): Record<string, number> {
+    if (!zone)
+      return Object.fromEntries(
+        [...this.ownerAreas].map(([owner, area]) => [
+          owner,
+          this.scoringArea ? Math.min(100, Math.max(0, area / this.scoringArea * 100)) : 0,
+        ]),
+      );
     let total = 0;
     const area: Record<string, number> = {};
     for (const { surface: s, cells, valid } of this.fields.values()) {
@@ -144,6 +158,7 @@ export class PaintField {
     };
   }
   restore(snapshot: PaintSnapshot) {
+    this.ownerAreas.clear();
     for (const f of this.fields.values()) {
       f.cells.clear();
       f.revision = 0;
@@ -154,8 +169,26 @@ export class PaintField {
       if (f) {
         f.revision = s.revision;
         for (const c of s.cells)
-          if (f.valid.has(c[0])) f.cells.set(c[0], [...c]);
+          if (f.valid.has(c[0])) this.recordCell(f.surface, f.cells, [...c]);
       }
     }
+  }
+  /** A changed cell transfers only its real area; wall color never changes scores. */
+  private recordCell(surface: PaintSurface, cells: Map<number, PaintCell>, cell: PaintCell) {
+    const previous = cells.get(cell[0]);
+    if (surface.scoring && previous?.[2] !== cell[2]) {
+      const cols = Math.ceil(surface.width / surface.cellSize),
+        x = cell[0] % cols,
+        y = Math.floor(cell[0] / cols),
+        area = Math.min(surface.cellSize, surface.width - x * surface.cellSize) *
+          Math.min(surface.cellSize, surface.height - y * surface.cellSize);
+      if (previous) {
+        const remaining = (this.ownerAreas.get(previous[2]) ?? 0) - area;
+        if (remaining > 1e-10) this.ownerAreas.set(previous[2], remaining);
+        else this.ownerAreas.delete(previous[2]);
+      }
+      this.ownerAreas.set(cell[2], (this.ownerAreas.get(cell[2]) ?? 0) + area);
+    }
+    cells.set(cell[0], cell);
   }
 }

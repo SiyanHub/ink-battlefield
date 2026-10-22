@@ -14,6 +14,11 @@ export function startScheduler(
       r.last = now;
       while (r.accumulator >= 1 / 60) {
         for (const player of r.members) {
+          if (!player.inputReleased && now - player.lastInputAt > 500) {
+            player.inputs = [];
+            player.inputReleased = true;
+            r.simulation.releaseInput(player.id);
+          }
           const next = player.inputs.shift();
           if (next) r.simulation.input(player.id, next);
         }
@@ -21,13 +26,12 @@ export function startScheduler(
         r.accumulator -= 1 / 60;
         r.broadcastTicks++;
         if (r.broadcastTicks % 3 === 0) {
-          const frame = r.simulation.takeFrame();
-          const { paint, ...snapshot } = frame.snapshot;
+          const frame = r.simulation.takeFrame(false);
           for (const p of r.members)
             send(p.ws, {
               type: "frame",
               matchId: r.matchId,
-              frame: { snapshot, events: frame.events },
+              frame,
               ack: r.simulation.acknowledgedInput(p.id),
             });
           if (

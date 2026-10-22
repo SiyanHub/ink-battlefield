@@ -21,6 +21,14 @@ const holds: Record<string,Hold> = {
   compass:{...tool,position:[.24,-.21,-.55],rotation:[.55,.22,-.25],grip:[0,0,.13]},
   roller:{...tool,position:[.24,-.23,-.61],rotation:[.72,.16,-.13]},
   bow:{position:[-.22,-.16,-.7],rotation:[.025,-.2,.10],grip:[0,0,0],support:[.04,0,.14],scale:.7},
+  dual:{position:[0,-.22,-.46],rotation:[.02,0,0],grip:[.145,-.126,.087],support:[-.145,-.126,.062],scale:.68},
+  scatter:{...long,position:[.23,-.25,-.45]},
+  rocket:{...long,position:[.25,-.27,-.43],scale:.55},
+  minigun:{...long,position:[.24,-.27,-.46],scale:.53},
+  crossbow:{...long,position:[.20,-.25,-.49],scale:.65},
+  nailgun:{...long,position:[.23,-.24,-.45]},
+  bucket:{position:[.25,-.28,-.55],rotation:[.12,.12,.03],grip:[.185,.14,-.15],support:[-.13,-.17,-.15],scale:.7},
+  bubble:{...long,position:[.23,-.27,-.46],scale:.62},
 };
 
 function limb(parent: T.Group,a: V,b: V,r1: number,r2: number,color: number) {
@@ -62,12 +70,17 @@ export class WeaponView {
   private model: T.Group | null=null;
   private pose=long;
   private shotAt=-100;
-  private time=0;
+  private shotPending=false;
   private reloadTotal=0;
   private wasReloading=false;
   private equip=1;
   private aimAmount=0;
-  private flash: T.Mesh | null=null;
+  private flashes:T.Mesh[]=[];
+  private barrelAngle=0;
+  private barrelSpeed=0;
+  private impactAt=-100;
+  private impactPending=false;
+  private impactStrength=0;
   private arms: {node:T.Group;hand:T.Group;end:T.Vector3;length:number}[]=[];
   private rest=new Map<T.Object3D,{p:T.Vector3;r:T.Euler}>();
   set(w: WeaponDefinition) {
@@ -81,11 +94,14 @@ export class WeaponView {
     this.pose={...this.pose,grip:grip?grip.position.toArray() as V:this.pose.grip,
       support:supportAnchor?supportAnchor.position.toArray() as V:undefined};
     const muzzle=this.model.getObjectByName("muzzle");
-    this.flash=null;
+    this.flashes=[];
     if(muzzle&&!w.melee&&w.model!=="bow") {
-      this.flash=new T.Mesh(new T.IcosahedronGeometry(.024,0),new T.MeshBasicMaterial({color:w.color,transparent:true,opacity:.8,depthWrite:false}));
-      this.flash.name="ink-pulse"; this.flash.position.copy(muzzle.position);
-      this.flash.visible=false; this.model.add(this.flash);
+      const positions=w.model==="dual"?[new T.Vector3(-.145,.029,-.331),new T.Vector3(.145,.029,-.306)]:[muzzle.position];
+      for(const position of positions){
+        const flash=new T.Mesh(new T.IcosahedronGeometry(.024,1),new T.MeshBasicMaterial({color:w.color,transparent:true,opacity:.8,depthWrite:false}));
+        flash.name="ink-pulse";flash.position.copy(position);flash.visible=false;flash.layers.set(1);
+        this.model.add(flash);this.flashes.push(flash);
+      }
     }
     const bow=w.model==="bow";
     const h=hand(this.pose.grip,bow,this.pose.tool);
@@ -114,16 +130,24 @@ export class WeaponView {
     }
     applyWeaponPaper(this.model);
     this.model.traverse(o=>this.rest.set(o,{p:o.position.clone(),r:o.rotation.clone()}));
-    this.equip=1; this.aimAmount=0; this.shotAt=-100; this.wasReloading=false;
+    this.equip=1; this.aimAmount=0; this.shotAt=-100; this.impactAt=-100; this.shotPending=this.impactPending=false; this.wasReloading=false;this.barrelAngle=this.barrelSpeed=0;
   }
-  shot() { this.shotAt=this.time; }
+  shot(color?:number) {
+    this.shotPending=true;
+    for(const flash of this.flashes)(flash.material as T.MeshBasicMaterial).color.setHex(color??this.definition?.color??0x1977bd);
+  }
+  impact(lethal=false) { this.impactPending=true; this.impactStrength=lethal?1:.45; }
   update(m: WeaponMotion) {
-    this.time=m.time;
     const w=this.definition;
     if(!w || !this.model) return;
+    // Start on the next presented frame, so slow frames and first equip cannot consume the whole flash unseen.
+    if(this.shotPending){this.shotAt=m.time-Math.min(Math.max(0,m.dt),1/120);this.shotPending=false;}
+    if(this.impactPending){this.impactAt=m.time;this.impactPending=false;}
     this.equip=Math.max(0,this.equip-m.dt*5);
     const age=Math.max(0,m.time-this.shotAt);
     const recoil=Math.exp(-age*19)*Math.min(age*70,1);
+    const impactAge=Math.max(0,m.time-this.impactAt);
+    const punch=Math.exp(-impactAge*28)*this.impactStrength;
     const swing=age<.42?Math.sin(Math.min(1,age/.42)*Math.PI):0;
     const loading=m.reloadRemaining>0;
     if(loading&&!this.wasReloading) this.reloadTotal=m.reloadRemaining;
@@ -132,9 +156,11 @@ export class WeaponView {
     const dip=loading?Math.sin(reload*Math.PI):0;
     const bob=m.reduceMotion?0:Math.sin(m.time*9)*Math.min(.006,m.speed*.0008);
     const [px,py,pz]=this.pose.position,[rx,ry,rz]=this.pose.rotation;
-    const strength=w.model==="revolver"?.08:w.model==="shotgun"?.065:.026;
-    this.root.position.set(px-(w.melee?swing*.15:0),py+bob-dip*.085-this.equip*.18,pz+(w.melee?-swing*.05:recoil*strength));
-    this.root.rotation.set(rx+(w.melee?-swing*.95:recoil*strength*2)-dip*.19,ry+(w.melee?swing*.55:0),rz+dip*.43+this.equip*.25);
+    const heavy=["shotgun","rocket","grenade","nailgun","sniper"].includes(w.model);
+    const soft=["brush","roller","minigun"].includes(w.model);
+    const strength=(heavy?.11:w.model==="revolver"?.095:soft?.032:.055)*(m.reduceMotion?.65:1);
+    this.root.position.set(px-(w.melee?swing*.15:0),py+bob-dip*.085-this.equip*.18-punch*.009,pz+(w.melee?-swing*.05:recoil*strength)-punch*.012);
+    this.root.rotation.set(rx+(w.melee?-swing*.95:recoil*strength*2.4)-dip*.19,ry+(w.melee?swing*.55:0),rz+dip*.43+this.equip*.25+punch*.012);
     const aiming=m.aim&&!loading&&!w.melee;
     this.aimAmount+=((aiming?1:0)-this.aimAmount)*(m.reduceMotion?1:1-Math.exp(-22*m.dt));
     const sight=this.model.getObjectByName("sight-anchor");
@@ -147,12 +173,25 @@ export class WeaponView {
       this.root.rotation.y*=1-this.aimAmount*.6;
     }
     for(const [o,r] of this.rest) { o.position.copy(r.p); o.rotation.copy(r.r); }
-    if(this.flash) {
-      this.flash.visible=age<.07;
-      this.flash.scale.setScalar(.65+age*12);
-      this.flash.rotation.z=age*40;
+    for(const flash of this.flashes) {
+      flash.visible=age<.065;
+      flash.scale.set(.9+age*14,.9+age*14,1.8+age*22);
+      (flash.material as T.MeshBasicMaterial).opacity=.9*Math.max(0,1-age/.065);
+      flash.rotation.z=age*40;
     }
     const obj=(name: string)=>this.model!.getObjectByName(name);
+    if(w.model==="minigun"){
+      this.barrelSpeed+=((age<.15?32:0)-this.barrelSpeed)*(1-Math.exp(-9*m.dt));
+      this.barrelAngle+=this.barrelSpeed*m.dt;
+      const barrels=obj("barrel-cluster");if(barrels)barrels.rotation.z=this.barrelAngle;
+    }
+    if(w.model==="bucket"){
+      this.root.rotation.x-=swing*.55;this.root.position.y+=swing*.07;this.root.position.z-=swing*.08;
+    }
+    if(w.model==="crossbow"){
+      const bolt=obj("loaded-bolt"),tip=obj("bolt-tip"),feather=obj("feather");
+      for(const part of [bolt,tip,feather])if(part)part.visible=age>.2;
+    }
     const magazine=obj("magazine");
     if(magazine) magazine.position.y-=dip*.16;
     const cylinder=obj("cylinder");

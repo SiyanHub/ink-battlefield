@@ -35,6 +35,12 @@ export interface ProjectileRuntime {
   splash: number;
   paintRadius: number;
   cluster: boolean;
+  remainingRange: number;
+  penetration: number;
+  ricochets: number;
+  hitActors: Set<string>;
+  headMultiplier: number;
+  blockAllies: boolean;
 }
 export class Runtime {
   time = 0;

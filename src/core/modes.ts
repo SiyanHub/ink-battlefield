@@ -92,8 +92,9 @@ modeRegistry.register({
   target: 100,
   title: "全图涂地",
   update(rt, s) {
-    s.scores = rt.paint.coverage();
-    s.objective.description = "四分钟后，地板覆盖面积较大的队伍获胜";
+    const coverage = rt.paint.coverage();
+    s.scores = { blue: coverage.blue ?? 0, red: coverage.red ?? 0 };
+    s.objective.description = "四分钟截止时按地板墨色面积决胜 · 墙面不计分 · 覆盖可夺回面积";
     s.objective.progress = Math.max(0, ...Object.values(s.scores));
   },
   onDeath: noop,
@@ -102,12 +103,12 @@ export function createModeState(rule: ModeRules, teamMode = false): ModeState {
   const practice = rule.id === "practice" ? createPracticeGuide() : undefined;
   return {
     ...(practice ? { practice } : {}),
-    scores: {},
+    scores: rule.id === "turf" ? { blue: 0, red: 0 } : {},
     winner: null,
     finished: false,
     lastSecond: -1,
     remaining: rule.duration,
-    teamMode,
+    teamMode: rule.id === "turf" || teamMode,
     objective: {
       title: rule.title,
       description: practice ? "顺序不限 · 左键击倒纸靶 0/3 · 向地面射击染色 0/1% · E 释放职业技能" : "让每一笔都留下颜色",
@@ -122,7 +123,7 @@ export function updateMode(rt: Runtime, rule: ModeRules, state: ModeState) {
   state.remaining = Math.max(0, rule.duration - rt.time);
   state.objective.remaining = state.remaining;
   const second = Math.floor(rt.time);
-  if (rule.id === "practice" || second !== state.lastSecond) {
+  if (rule.id === "practice" || rule.id === "turf" || second !== state.lastSecond) {
     state.lastSecond = second;
     rule.update(rt, state);
   }

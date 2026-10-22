@@ -57,6 +57,7 @@ export interface WeaponDefinition {
   burst?: number;
   charge?: number;
   speed?: number;
+  projectileRadius?: number;
   gravity?: number;
   splash?: number;
   knockback?: number;
@@ -237,6 +238,8 @@ export interface GameEvent {
   id: number;
   type:
     | "shot"
+    | "projectile"
+    | "projectile-end"
     | "hit"
     | "death"
     | "paint"
@@ -249,6 +252,8 @@ export interface GameEvent {
   actorId?: string;
   targetId?: string;
   weaponId?: string;
+  projectile?: ProjectileSnapshot;
+  projectileId?: string;
   pos?: Vec3;
   to?: Vec3;
   normal?: Vec3;
@@ -278,6 +283,7 @@ export interface Profile {
     volume: number;
     quality: "low" | "medium" | "high";
     reduceMotion: boolean;
+    hudScale?: number;
   };
   progress: Record<ClassId, number>;
   stats: { runs: number; wins: number; kills: number };

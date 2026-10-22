@@ -4,7 +4,7 @@ import type {
   Vec3,
   WeaponDefinition,
 } from "../shared/contracts";
-import type { Runtime, ActorRuntime } from "./runtime";
+import type { Runtime, ActorRuntime, ProjectileRuntime } from "./runtime";
 import { v, add, sub, mul, norm, aim, distance, dot, clamp } from "./math";
 import { raySphere } from "./world";
 import { applyDamage, knockback } from "./damage";
@@ -20,9 +20,6 @@ export interface ShotContext {
 }
 export type WeaponBehavior = (shot: ShotContext) => void;
 export const weaponBehaviors = new Map<string, WeaponBehavior>();
-const palette = [
-  0xe55282, 0x4e9be1, 0xe8b537, 0x45b7a1, 0x9c73d6, 0xf18c44, 0x69bade,
-];
 export function paintHit(
   rt: Runtime,
   point: Vec3,
@@ -42,83 +39,11 @@ export function traceShot(
   penetration = 0,
   ricochet = false,
 ) {
-  const { rt, actor, weapon, origin, color } = s;
-  const wall = rt.world.ray(origin, dir, weapon.range);
-  let max = wall?.distance ?? weapon.range;
-  const hits: { a: ActorSnapshot; t: number; head: boolean }[] = [];
-  for (const state of rt.actors.values()) {
-    const a = state.actor;
-    if (!a.alive || a.id === actor.id || a.teamId === actor.teamId) continue;
-    const geometry = actorGeometry(a);
-    const head = raySphere(
-      origin,
-      dir,
-      add(a.pos, v(0, geometry.headHeight, 0)),
-      geometry.headRadius,
-      max,
-    );
-    const body = raySphere(
-      origin,
-      dir,
-      add(a.pos, v(0, geometry.bodyHeight, 0)),
-      geometry.bodyRadius,
-      max,
-    );
-    if (head !== null || body !== null)
-      hits.push({
-        a,
-        t: head ?? body!,
-        // Torso proxies deliberately overlap the neck. A line through the
-        // precise head must still be a weak-point hit on a broad-shouldered boss.
-        head: head !== null,
-      });
-  }
-  hits.sort((a, b) => a.t - b.t);
-  for (const h of hits.slice(0, 1 + penetration)) {
-    const point = add(origin, mul(dir, h.t));
-    applyDamage(
-      rt,
-      h.a,
-      actor,
-      s.damage * (h.head ? 1.5 + rt.effect(actor, "weakpoint") : 1),
-      point,
-      color,
-    );
-    max = h.t;
-  }
-  if (wall && hits.length <= penetration) {
-    paintHit(
-      rt,
-      wall.point,
-      wall.normal,
-      wall.surfaceId,
-      weapon.paintRadius * (1 + rt.effect(actor, "paint")),
-      actor.teamId,
-      color,
-    );
-    max = wall.distance;
-    if (ricochet) {
-      const d =
-        dir.x * wall.normal.x + dir.y * wall.normal.y + dir.z * wall.normal.z;
-      traceShot(
-        {
-          ...s,
-          origin: add(wall.point, mul(wall.normal, 0.04)),
-          damage: s.damage * 0.6,
-        },
-        sub(dir, mul(wall.normal, 2 * d)),
-        0,
-        false,
-      );
-    }
-  }
-  rt.emit({
-    type: "shot",
-    actorId: actor.id,
-    weaponId: weapon.id,
-    pos: origin,
-    to: add(origin, mul(dir, max)),
-    color,
+  // Keep the extension API; former instant traces now launch swept physical ink.
+  launch({ ...s, direction: dir }, {
+    penetration,
+    ricochets: ricochet ? 1 : 0,
+    headMultiplier: 1.5 + s.rt.effect(s.actor, "weakpoint"),
   });
 }
 weaponBehaviors.set("hitscan", (s) =>
@@ -130,42 +55,22 @@ weaponBehaviors.set("hitscan", (s) =>
   ),
 );
 weaponBehaviors.set("burst", (s) => traceShot(s));
-weaponBehaviors.set("pellets", (s) => {
-  for (let j = 0; j < (s.weapon.pellets ?? 1); j++)
-    traceShot(
-      s,
-      norm(
-        add(
-          s.direction,
-          v(
-            (s.rt.random() - 0.5) * s.weapon.spread,
-            (s.rt.random() - 0.5) * s.weapon.spread,
-            (s.rt.random() - 0.5) * s.weapon.spread,
-          ),
-        ),
-      ),
-    );
-});
-weaponBehaviors.set("spray", (s) => {
-  for (
-    let j = 0;
-    j < (s.weapon.pellets ?? 1) + s.rt.effect(s.actor, "spraywide");
-    j++
-  )
-    traceShot(
-      s,
-      norm(
-        add(
-          s.direction,
-          v(
-            (s.rt.random() - 0.5) * s.weapon.spread,
-            (s.rt.random() - 0.5) * s.weapon.spread,
-            (s.rt.random() - 0.5) * s.weapon.spread,
-          ),
-        ),
-      ),
-    );
-});
+function volley(s: ShotContext, count: number) {
+  let launched = false;
+  for (let j = 0; j < count; j++) {
+    const direction = norm(add(s.direction, v(
+      (s.rt.random() - 0.5) * s.weapon.spread,
+      (s.rt.random() - 0.5) * s.weapon.spread,
+      (s.rt.random() - 0.5) * s.weapon.spread,
+    )));
+    launched = !!launch({ ...s, direction }, {
+      headMultiplier: 1.5 + s.rt.effect(s.actor, "weakpoint"), emitShot: false,
+    }) || launched;
+  }
+  if (launched) muzzle(s);
+}
+weaponBehaviors.set("pellets", s => volley(s, s.weapon.pellets ?? 1));
+weaponBehaviors.set("spray", s => volley(s, (s.weapon.pellets ?? 1) + s.rt.effect(s.actor, "spraywide")));
 function melee(s: ShotContext) {
   const { rt, actor, weapon } = s;
   for (const { actor: target } of rt.actors.values()) {
@@ -182,7 +87,7 @@ function melee(s: ShotContext) {
       dot(norm(d), s.direction) > 0.25 &&
       rt.world.visible(s.origin, center)
     ) {
-      applyDamage(rt, target, actor, s.damage, center, s.color, true);
+      applyDamage(rt, target, actor, s.damage, center, s.color, true, { weaponId: weapon.id, normal: mul(s.direction, -1) });
       if (weapon.knockback) knockback(target, s.direction, weapon.knockback);
     }
   }
@@ -214,42 +119,58 @@ function melee(s: ShotContext) {
 }
 weaponBehaviors.set("melee", melee);
 weaponBehaviors.set("roller", melee);
-function launch(s: ShotContext) {
+function muzzle(s: ShotContext) {
+  s.rt.emit({ type: "shot", actorId: s.actor.id, weaponId: s.weapon.id,
+    pos: { ...s.origin }, to: add(s.origin, mul(s.direction, 2)), color: s.color });
+}
+function defaultSpeed(w: WeaponDefinition) {
+  if (w.behavior === "spray") return 45;
+  if (w.behavior === "pellets") return 70;
+  if (w.behavior === "beam") return 150;
+  if (w.model === "sniper") return 180;
+  if (w.model === "revolver") return 120;
+  if (w.model === "smg") return 85;
+  return w.behavior === "hitscan" || w.behavior === "burst" ? 95 : 45;
+}
+function launch(s: ShotContext, options: { penetration?: number; ricochets?: number; headMultiplier?: number; emitShot?: boolean } = {}) {
   const { rt, actor, weapon: w } = s;
   if (rt.projectiles.size >= 384) return;
-  const id = `projectile-${++rt.serial}`;
+  const id = `projectile-${++rt.serial}`,
+    speed = (w.speed ?? defaultSpeed(w)) * (w.charge ? 0.65 + 0.35 * s.power : 1);
   rt.projectiles.set(id, {
     snapshot: {
       id,
       ownerId: actor.id,
       teamId: actor.teamId,
       pos: { ...s.origin },
-      vel: mul(s.direction, (w.speed ?? 45) * (0.65 + 0.35 * s.power)),
+      vel: mul(s.direction, speed),
       color: s.color,
-      radius: w.splash ? 0.2 : 0.07,
+      radius: w.projectileRadius ?? (w.splash ? 0.2 : w.behavior === "spray" ? 0.09 : w.behavior === "beam" ? 0.08 : 0.055),
       weaponId: w.id,
     },
-    damage: s.damage * (0.3 + 0.7 * s.power),
+    damage: s.damage * (w.charge ? 0.3 + 0.7 * s.power : 1),
     gravity: w.gravity ?? 0,
-    expires: rt.time + Math.min(5, w.range / (w.speed ?? 45) + 1),
+    expires: rt.time + Math.min(5, w.range / Math.max(1, speed) + 1),
     splash: w.splash ?? 0,
     paintRadius: w.paintRadius * (1 + rt.effect(actor, "paint")),
     cluster: rt.effect(actor, "cluster") > 0,
+    remainingRange: w.range,
+    penetration: Math.max(0, Math.floor(options.penetration ?? 0)),
+    ricochets: options.ricochets ?? 0,
+    hitActors: new Set(),
+    headMultiplier: options.headMultiplier ?? 1,
+    blockAllies: actor.kind === "player",
   });
-  rt.emit({
-    type: "shot",
-    actorId: actor.id,
-    weaponId: w.id,
-    pos: s.origin,
-    to: add(s.origin, mul(s.direction, 2)),
-    color: s.color,
-  });
+  const projectile = rt.projectiles.get(id)!.snapshot;
+  rt.emit({ type: "projectile", projectile: { ...projectile, pos: { ...projectile.pos }, vel: { ...projectile.vel } } });
+  if (options.emitShot !== false) muzzle(s);
+  return id;
 }
-weaponBehaviors.set("projectile", launch);
-weaponBehaviors.set("charge", launch);
+weaponBehaviors.set("projectile", s => { launch(s); });
+weaponBehaviors.set("charge", s => { launch(s); });
 weaponBehaviors.set("beam", (s) =>
   traceShot(
-    { ...s, damage: s.damage * (0.3 + 0.7 * s.power) },
+    s,
     s.direction,
     1 + s.rt.effect(s.actor, "penpierce"),
   ),
@@ -298,7 +219,7 @@ function shoot(
     origin: add(a.pos, v(0, 1.62, 0)),
     direction,
     damage,
-    color: palette[(rt.tick + palette.length + a.kills) % palette.length],
+    color: a.color,
     power,
   });
   return true;
@@ -392,117 +313,108 @@ export function updateWeapon(rt: Runtime, state: ActorRuntime) {
   }
   state.lastPrimary = i.primary;
 }
+function explode(rt: Runtime, p: ProjectileRuntime, point: Vec3, dir: Vec3, directId?: string) {
+  if (!p.splash) return;
+  const q = p.snapshot, source = rt.actors.get(q.ownerId)?.actor ?? null;
+  if (source)
+    for (const { actor: target } of rt.actors.values()) {
+      if (target.id === directId || target.teamId === q.teamId || !target.alive) continue;
+      const center = add(target.pos, v(0, 1, 0)), d = distance(center, point);
+      if (d < p.splash && rt.world.visible(add(point, mul(dir, -0.05)), center))
+        applyDamage(rt, target, source, p.damage * (1 - d / p.splash), point, q.color, false,
+          { weaponId: q.weaponId, normal: norm(sub(point, center)) });
+    }
+  const floor = rt.world.ray(add(point, v(0, 0.1, 0)), v(0, -1, 0), 6);
+  if (floor)
+    paintHit(rt, floor.point, floor.normal, floor.surfaceId, p.paintRadius, q.teamId, q.color);
+  rt.emit({ type: "skill", pos: point, color: q.color, weaponId: q.weaponId, text: "爆破" });
+  if (p.cluster && source)
+    for (let k = 0; k < 3; k++) {
+      const angle = k * Math.PI * 2 / 3;
+      const id = launch({ rt, actor: source,
+        weapon: { ...rt.weapons.grenade, id: "grenade", speed: 9, gravity: 12, splash: 1.5, paintRadius: 1 },
+        origin: add(point, v(0, 0.4, 0)), direction: norm(v(Math.cos(angle), 1, Math.sin(angle))),
+        damage: p.damage * 0.2, color: q.color, power: 1,
+      }, { emitShot: false });
+      if (id) rt.projectiles.get(id)!.cluster = false;
+    }
+}
+
+function sphereContact(origin: Vec3, dir: Vec3, center: Vec3, radius: number, limit: number) {
+  // Muzzles and moving actors can overlap between ticks. An inside start is
+  // already a contact, not a negative ray entry to discard.
+  return distance(origin, center) <= radius ? 0 : raySphere(origin, dir, center, radius, limit);
+}
+
+function finishProjectile(rt: Runtime, id: string, point: Vec3) {
+  rt.emit({ type: "projectile-end", projectileId: id, pos: { ...point } });
+  rt.projectiles.delete(id);
+}
+
 export function updateProjectiles(rt: Runtime, dt: number) {
-  for (const [id, p] of rt.projectiles) {
+  // Children emitted by an impact start next tick; iterating the live Map would
+  // grant them a second frame's travel within their parent's collision step.
+  for (const [id, p] of [...rt.projectiles]) {
     const q = p.snapshot;
-    if (rt.time >= p.expires) {
-      rt.projectiles.delete(id);
-      continue;
-    }
+    if (rt.time >= p.expires || p.remainingRange <= 1e-7) { finishProjectile(rt, id, q.pos); continue; }
     q.vel.y -= p.gravity * dt;
-    const delta = mul(q.vel, dt),
-      range = distance(v(), delta),
-      dir = norm(delta),
-      wall = rt.world.ray(q.pos, dir, range);
-    let best = wall?.distance ?? range,
-      hit: ActorSnapshot | null = null;
-    for (const { actor: a } of rt.actors.values()) {
-      if (!a.alive || a.id === q.ownerId || a.teamId === q.teamId) continue;
-      const geometry = actorGeometry(a);
-      const body = raySphere(
-          q.pos,
-          dir,
-          add(a.pos, v(0, geometry.bodyHeight, 0)),
-          geometry.bodyRadius,
-          best,
-        ),
-        head = raySphere(
-          q.pos,
-          dir,
-          add(a.pos, v(0, geometry.headHeight, 0)),
-          geometry.headRadius,
-          best,
-        );
-      const d = Math.min(body ?? Infinity, head ?? Infinity);
-      if (Number.isFinite(d)) {
-        best = d;
-        hit = a;
+    let travel = Math.min(distance(v(), q.vel) * dt, p.remainingRange);
+    while (travel > 1e-7 && rt.projectiles.has(id)) {
+      const dir = norm(q.vel), wall = rt.world.ray(q.pos, dir, travel), limit = wall?.distance ?? travel;
+      const hits: { actor: ActorSnapshot; distance: number; head: boolean }[] = [];
+      for (const { actor: target } of rt.actors.values()) {
+        if (!target.alive || target.id === q.ownerId || p.hitActors.has(target.id) ||
+          (!p.blockAllies && target.teamId === q.teamId)) continue;
+        const geometry = actorGeometry(target);
+        const body = sphereContact(q.pos, dir, add(target.pos, v(0, geometry.bodyHeight, 0)), geometry.bodyRadius, limit);
+        // Broad torso proxies overlap the neck. Classify the precise head along
+        // this contact path, independent of where the 60 Hz segment ends, while
+        // still applying damage only at the earliest contact inside this step.
+        const head = sphereContact(q.pos, dir, add(target.pos, v(0, geometry.headHeight, 0)), geometry.headRadius,
+          Math.min(p.remainingRange, limit + 2 * (geometry.bodyRadius + geometry.headRadius)));
+        const headInStep = head !== null && head <= limit;
+        if (headInStep || body !== null)
+          hits.push({ actor: target, distance: Math.min(body ?? Infinity, headInStep ? head! : Infinity),
+            head: head !== null && (headInStep || !rt.world.ray(q.pos, dir, head)) });
       }
+      hits.sort((a, b) => a.distance - b.distance);
+      for (const hit of hits) {
+        const point = add(q.pos, mul(dir, hit.distance));
+        if (hit.actor.teamId === q.teamId) {
+          explode(rt, p, point, dir, hit.actor.id);
+          finishProjectile(rt, id, point);
+          break;
+        }
+        p.hitActors.add(hit.actor.id);
+        const source = rt.actors.get(q.ownerId)?.actor ?? null;
+        if (source)
+          applyDamage(rt, hit.actor, source, p.damage * (hit.head ? p.headMultiplier : 1), point, q.color, false,
+            { weaponId: q.weaponId, normal: mul(dir, -1) });
+        if (p.splash || p.penetration <= 0) {
+          explode(rt, p, point, dir, hit.actor.id);
+          finishProjectile(rt, id, point);
+          break;
+        }
+        p.penetration--;
+      }
+      if (!rt.projectiles.has(id)) break;
+      if (wall) {
+        paintHit(rt, wall.point, wall.normal, wall.surfaceId, p.paintRadius, q.teamId, q.color);
+        explode(rt, p, wall.point, dir);
+        if (p.ricochets > 0 && !p.splash) {
+          p.ricochets--; p.penetration = 0; p.damage *= 0.6;
+          p.remainingRange -= wall.distance; travel -= wall.distance;
+          q.pos = add(wall.point, mul(wall.normal, 0.04));
+          q.vel = sub(q.vel, mul(wall.normal, 2 * dot(q.vel, wall.normal)));
+          continue;
+        }
+        finishProjectile(rt, id, wall.point);
+        break;
+      }
+      q.pos = add(q.pos, mul(dir, travel));
+      p.remainingRange -= travel;
+      if (p.remainingRange <= 1e-7) finishProjectile(rt, id, q.pos);
+      break;
     }
-    const point = add(q.pos, mul(dir, best));
-    const source = rt.actors.get(q.ownerId)?.actor ?? null;
-    if (hit || wall) {
-      if (hit && source) applyDamage(rt, hit, source, p.damage, point, q.color);
-      if (p.splash && source)
-        for (const { actor: a } of rt.actors.values()) {
-          if (a.id === hit?.id || a.teamId === source.teamId || !a.alive)
-            continue;
-          const d = distance(add(a.pos, v(0, 1, 0)), point);
-          if (
-            d < p.splash &&
-            rt.world.visible(
-              add(point, mul(dir, -0.05)),
-              add(a.pos, v(0, 1, 0)),
-            )
-          )
-            applyDamage(
-              rt,
-              a,
-              source,
-              p.damage * (1 - d / p.splash),
-              point,
-              q.color,
-            );
-        }
-      if (wall)
-        paintHit(
-          rt,
-          wall.point,
-          wall.normal,
-          wall.surfaceId,
-          p.paintRadius,
-          q.teamId,
-          q.color,
-        );
-      if (p.splash) {
-        const floor = rt.world.ray(add(point, v(0, 0.1, 0)), v(0, -1, 0), 6);
-        if (floor)
-          paintHit(
-            rt,
-            floor.point,
-            floor.normal,
-            floor.surfaceId,
-            p.paintRadius,
-            q.teamId,
-            q.color,
-          );
-        rt.emit({ type: "skill", pos: point, color: q.color, text: "爆破" });
-        if (p.cluster && source) {
-          for (let k = 0; k < 3; k++) {
-            const angle = (k * Math.PI * 2) / 3;
-            launch({
-              rt,
-              actor: source,
-              weapon: {
-                ...rt.weapons.grenade,
-                id: "grenade",
-                speed: 9,
-                gravity: 12,
-                splash: 1.5,
-                paintRadius: 1,
-              },
-              origin: add(point, v(0, 0.4, 0)),
-              direction: norm(v(Math.cos(angle), 1, Math.sin(angle))),
-              damage: p.damage * 0.2,
-              color: palette[k],
-              power: 1,
-            });
-            const latest = [...rt.projectiles.values()].at(-1);
-            if (latest) latest.cluster = false;
-          }
-        }
-      }
-      rt.projectiles.delete(id);
-    } else q.pos = add(q.pos, delta);
   }
 }

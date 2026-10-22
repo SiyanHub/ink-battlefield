@@ -5,7 +5,8 @@ import type {
 } from "../shared/contracts";
 import type { Runtime } from "./runtime";
 import { spawnEnemy } from "./actors";
-import { upgrades } from "../content";
+import { classes, upgrades } from "../content";
+import { upgradeAppliesToWeapon } from "../content/upgrades";
 import { rng, distance } from "./math";
 import type { DefenseTarget } from "./ai";
 export interface CampaignConfig {
@@ -22,6 +23,7 @@ export class CampaignDirector {
   chosen = false;
   private wave = 0;
   private nextWave = 0.6;
+  private clearedAt: number | null = null;
   private totalGroups: number;
   private duration: number;
   private bossId: string | null = null;
@@ -71,8 +73,8 @@ export class CampaignDirector {
               ? "消灭来袭纸兵，并染色画心区域的65%地板"
               : "阻止纸兵破坏画心，完成防守",
       progress: 0,
-      target: kind === "boss" ? 1 : kind === "paint" ? 65 : this.totalGroups,
-      remaining: this.duration,
+      target: kind === "boss" ? 1 : kind === "paint" ? 65 : this.totalGroups * (2 + chapter),
+      remaining: kind === "defend" ? this.duration : 0,
       deviceHp: kind === "defend" ? 500 : undefined,
     };
   }
@@ -117,6 +119,13 @@ export class CampaignDirector {
       if (boss && !boss.alive) this.finish(player);
       return;
     }
+    // Normal clear encounters reward a quick clear with another wave. Explicit
+    // duration/groups remain a fixed schedule for authored scenarios and tests.
+    if (this.state.objectiveKind === "clear" && this.config.duration === undefined &&
+      this.config.groups === undefined && this.wave > 0 && alive.length === 0) {
+      this.clearedAt ??= rt.time;
+      this.nextWave = Math.min(this.nextWave, this.clearedAt + 2.5);
+    } else this.clearedAt = null;
     if (
       this.wave < this.totalGroups &&
       rt.time >= this.nextWave &&
@@ -147,17 +156,22 @@ export class CampaignDirector {
       this.nextWave =
         rt.time + this.duration / Math.max(1, this.totalGroups - 1);
     }
-    this.objective.remaining = Math.max(0, this.duration - rt.time);
-    if (rt.tick - this.lastProgress >= 30) {
-      this.lastProgress = rt.tick;
-      this.objective.progress =
-        this.state.objectiveKind === "paint"
-          ? (rt.paint.coverage(rt.map.objectives[0])[player.teamId] ?? 0)
-          : this.wave;
-    }
-    const remainingEnemies = [...rt.actors.values()].some(
+    this.objective.remaining = this.state.objectiveKind === "defend" ? Math.max(0, this.duration - rt.time) : 0;
+    const remainingEnemies = [...rt.actors.values()].filter(
       (s) => s.actor.kind === "enemy" && s.actor.alive,
-    );
+    ).length;
+    if (this.state.objectiveKind === "paint" && rt.tick - this.lastProgress >= 30) {
+      this.lastProgress = rt.tick;
+      this.objective.progress = rt.paint.coverage(rt.map.objectives[0])[player.teamId] ?? 0;
+    }
+    if (this.state.objectiveKind !== "paint")
+      this.objective.progress = Math.max(0, this.wave * (2 + this.state.chapter) - remainingEnemies);
+    const waveStatus = `已出场 ${this.wave}/${this.totalGroups} 波 · 剩余纸兵 ${remainingEnemies}`;
+    this.objective.description = this.state.objectiveKind === "paint"
+      ? `画心覆盖 ${Math.floor(this.objective.progress)} / 65% · ${waveStatus}`
+      : this.state.objectiveKind === "defend"
+        ? `守护画心，击退全部来袭纸兵 · ${waveStatus}`
+        : `击败全部纸兵完成 · ${waveStatus}`;
     if (
       this.wave >= this.totalGroups &&
       !remainingEnemies &&
@@ -173,6 +187,9 @@ export class CampaignDirector {
     const possible = Object.values(upgrades).filter(
       (u) =>
         (u.classId === "all" || u.classId === player.classId) &&
+        [...classes[player.classId].weapons, classes[player.classId].melee].some(
+          id => upgradeAppliesToWeapon(u.id, this.rt.weapons[id]),
+        ) &&
         player.upgrades.filter((id) => id === u.id).length < u.maxStacks,
     );
     for (let i = possible.length - 1; i > 0; i--) {
